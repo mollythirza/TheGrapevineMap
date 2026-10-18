@@ -24,7 +24,6 @@
       border: 2px solid #f849c1;
     }
     
-    /* Input font size MUST be at least 16px to prevent mobile browser auto-zooming on focus */
     .custom-input {
       background: #121212;
       color: #66d575;
@@ -39,7 +38,7 @@
     .custom-input:focus { outline: none; border-color: #66d575; }
   </style>
 </head>
-<body class="flex flex-col h-[100dvh] overflow-hidden">
+<body class="flex flex-col h-[100dvh] overflow-hidden m-0 p-0">
 
   <!-- Header -->
   <header class="bg-[#121212] border-b-4 border-[#f849c1] px-3 md:px-6 py-3 flex justify-between items-center z-30 shadow-lg relative flex-shrink-0">
@@ -61,8 +60,8 @@
     </div>
   </header>
 
-  <!-- Main Container -->
-  <div class="flex flex-1 relative overflow-hidden w-full h-full">
+  <!-- Main Container (Fixed flex sizing to prevent map collapse) -->
+  <div class="flex flex-1 relative overflow-hidden w-full">
     
     <!-- Dark Backdrop for mobile drawer -->
     <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/70 z-40 hidden md:hidden transition-opacity"></div>
@@ -77,11 +76,11 @@
         <input type="text" id="search-input" placeholder="Search venues or genres..." class="custom-input" oninput="filterVenues()">
       </div>
       <div id="venue-list" class="flex-1 overflow-y-auto p-4 space-y-3">
-        <p class="text-xs text-gray-400 text-center py-6">Loading venues...</p>
+        <p class="text-xs text-gray-400 text-center py-6">Loading directory...</p>
       </div>
     </aside>
 
-    <!-- Map Area -->
+    <!-- Map Area (Explicit height/width fill) -->
     <main id="map" class="flex-1 w-full h-full z-0 bg-[#1e1e1e]"></main>
 
   </div>
@@ -126,9 +125,10 @@
     const map = L.map('map', { zoomControl: false }).setView([51.5074, -0.1278], initialZoom);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    setTimeout(() => map.invalidateSize(), 150);
+    // Force map tile calculation immediately and after layout paint
+    setTimeout(() => map.invalidateSize(), 100);
+    setTimeout(() => map.invalidateSize(), 500);
 
-    // Reset map view recalculations on popup close
     map.on('popupclose', () => {
       window.scrollTo(0, 0);
       setTimeout(() => map.invalidateSize(), 200);
@@ -156,6 +156,10 @@
       { id: 'default-2', name: "New Cross Inn", genre: "Punk / Alternative / Indie", lat: 51.4745, lng: -0.0385, note: "Heart of South London's grassroots live music scene.", author: "Molly" }
     ];
 
+    // Render default venues instantly so screen isn't blank while connecting
+    venues = defaultVenues;
+    renderVenues(venues);
+
     async function seedDefaultsIfNeeded() {
       if (!db) return;
       try {
@@ -166,7 +170,7 @@
           }
         }
       } catch(e) {
-        renderVenues(defaultVenues);
+        console.log("Using local venues.");
       }
     }
     seedDefaultsIfNeeded();
@@ -174,19 +178,19 @@
     if (db) {
       try {
         onSnapshot(collection(db, "venues"), (snapshot) => {
-          venues = [];
-          snapshot.forEach((doc) => {
-            venues.push({ id: doc.id, ...doc.data() });
-          });
-          renderVenues(venues);
+          if (!snapshot.empty) {
+            venues = [];
+            snapshot.forEach((doc) => {
+              venues.push({ id: doc.id, ...doc.data() });
+            });
+            renderVenues(venues);
+          }
         }, (error) => {
-          renderVenues(defaultVenues);
+          console.log("Snapshot fallback active");
         });
       } catch (e) {
-        renderVenues(defaultVenues);
+        console.log("Firestore listener setup error");
       }
-    } else {
-      renderVenues(defaultVenues);
     }
 
     function renderVenues(filteredVenues) {
@@ -234,4 +238,55 @@
       const backdrop = document.getElementById('sidebar-backdrop');
       sidebar.classList.toggle('-translate-x-full');
       backdrop.classList.toggle('hidden');
-      setTimeout(() => map.
+      setTimeout(() => map.invalidateSize(), 300);
+    }
+
+    map.on('click', (e) => {
+      const { lat, lng } = e.latlng;
+      const popupContent = `
+        <div style="min-width: 200px">
+          <h4 style="margin:0 0 6px 0; color:#f849c1; font-weight:bold;">Add Venue Recommendation</h4>
+          <label style="font-size:11px; color:#66d575;">Venue Name:</label>
+          <input id="new-name" class="custom-input" placeholder="e.g. The Sound Box" />
+          <label style="font-size:11px; color:#66d575;">Genre / Vibe:</label>
+          <input id="new-genre" class="custom-input" placeholder="e.g. Indie / Jazz" />
+          <label style="font-size:11px; color:#66d575;">Your Name (Optional):</label>
+          <input id="new-author" class="custom-input" placeholder="e.g. Molly" />
+          <label style="font-size:11px; color:#66d575;">Community Note:</label>
+          <input id="new-note" class="custom-input" placeholder="Why do you love it?" />
+          <button onclick="saveNewVenue(${lat}, ${lng})" style="width:100%; background:#f849c1; color:#1e1e1e; font-weight:bold; padding:8px; border:none; border-radius:4px; cursor:pointer; margin-top:6px;">Submit Pin</button>
+        </div>
+      `;
+      L.popup().setLatLng(e.latlng).setContent(popupContent).openOn(map);
+    });
+
+    window.saveNewVenue = async (lat, lng) => {
+      const name = document.getElementById('new-name').value.trim();
+      const genre = document.getElementById('new-genre').value.trim();
+      const author = document.getElementById('new-author').value.trim() || "Anonymous";
+      const note = document.getElementById('new-note').value.trim();
+
+      if (!name || !genre) {
+        alert("Please provide at least a Venue Name and Genre!");
+        return;
+      }
+
+      try {
+        await addDoc(collection(db, "venues"), { name, genre, lat, lng, note, author, createdAt: Date.now() });
+        map.closePopup();
+        window.scrollTo(0, 0);
+      } catch (err) {
+        alert("Error saving venue pin: " + err.message);
+      }
+    };
+
+    window.filterVenues = () => {
+      const query = document.getElementById('search-input').value.toLowerCase();
+      const filtered = venues.filter(v => 
+        v.name.toLowerCase().includes(query) || v.genre.toLowerCase().includes(query) || (v.author && v.author.toLowerCase().includes(query))
+      );
+      renderVenues(filtered);
+    };
+  </script>
+</body>
+</html>
