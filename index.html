@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Grapevine Community</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    @import url('https://db.onlinewebfonts.com/c/33a778322e7d57ee578df9e00a59d75b?family=Monte+Stella+VF+Trial+Medium');
+
+    body { background-color: #1e1e1e; color: #66d575; font-family: sans-serif; }
+    
+    .brand-title {
+      font-family: "Monte Stella VF Trial Medium", "Monte Stella", sans-serif;
+      font-weight: 500;
+    }
+
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+      background: #1e1e1e !important;
+      color: #66d575 !important;
+      border: 2px solid #f849c1;
+    }
+    
+    /* Input font size MUST be at least 16px to prevent mobile browser auto-zooming on focus */
+    .custom-input {
+      background: #121212;
+      color: #66d575;
+      border: 1px solid #f849c1;
+      padding: 8px 12px;
+      width: 100%;
+      border-radius: 4px;
+      margin-top: 4px;
+      margin-bottom: 8px;
+      font-size: 16px !important; 
+    }
+    .custom-input:focus { outline: none; border-color: #66d575; }
+  </style>
+</head>
+<body class="flex flex-col h-[100dvh] overflow-hidden">
+
+  <!-- Header -->
+  <header class="bg-[#121212] border-b-4 border-[#f849c1] px-3 md:px-6 py-3 flex justify-between items-center z-30 shadow-lg relative flex-shrink-0">
+    <div class="flex items-center space-x-2 md:space-x-3 overflow-hidden">
+      <!-- Grapevine Logo Image -->
+      <img src="pink no outline.png" alt="Grapevine Logo" class="w-7 h-7 md:w-9 md:h-9 object-contain flex-shrink-0" onerror="this.style.display='none'">
+      <h1 class="text-base md:text-2xl text-[#f849c1] brand-title truncate">The Grapevine</h1>
+    </div>
+    
+    <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
+      <span id="auth-status" class="text-[10px] text-gray-400 hidden lg:inline">Connecting...</span>
+      <!-- Mobile Directory Toggle Button -->
+      <button onclick="toggleSidebar()" class="md:hidden bg-[#f849c1] text-[#1e1e1e] font-bold px-3 py-1.5 rounded text-xs whitespace-nowrap shadow-md hover:bg-[#66d575] transition">
+        📁 Directory
+      </button>
+      <div class="hidden md:block text-xs md:text-sm text-[#66d575] bg-[#1e1e1e] px-3 py-1.5 rounded border border-[#66d575]/40">
+        💡 <span class="font-semibold">Click anywhere on the map</span> to recommend a venue!
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="flex flex-1 relative overflow-hidden w-full h-full">
+    
+    <!-- Dark Backdrop for mobile drawer -->
+    <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/70 z-40 hidden md:hidden transition-opacity"></div>
+
+    <!-- Sidebar / Mobile Slide-Out Drawer -->
+    <aside id="sidebar" class="fixed top-[57px] md:top-0 bottom-0 left-0 z-50 w-[85vw] max-w-sm bg-[#141414] border-r border-[#f849c1]/30 flex flex-col shadow-2xl transform -translate-x-full transition-transform duration-300 md:relative md:w-80 md:translate-x-0">
+      <div class="p-4 border-b border-[#262626] flex justify-between items-center bg-[#101010]">
+        <h2 class="text-sm font-semibold text-[#f849c1] uppercase tracking-wider">Community Directory</h2>
+        <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-white text-2xl font-bold px-2 py-1">&times;</button>
+      </div>
+      <div class="p-4 border-b border-[#262626] bg-[#141414]">
+        <input type="text" id="search-input" placeholder="Search venues or genres..." class="custom-input" oninput="filterVenues()">
+      </div>
+      <div id="venue-list" class="flex-1 overflow-y-auto p-4 space-y-3">
+        <p class="text-xs text-gray-400 text-center py-6">Loading venues...</p>
+      </div>
+    </aside>
+
+    <!-- Map Area -->
+    <main id="map" class="flex-1 w-full h-full z-0 bg-[#1e1e1e]"></main>
+
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <!-- Firebase Real-Time Cloud Script -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // ⚡ YOUR FIREBASE CONFIG CREDENTIALS ⚡
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY_HERE",
+      authDomain: "the-grapevine-collective.firebaseapp.com",
+      projectId: "the-grapevine-collective",
+      storageBucket: "the-grapevine-collective.appspot.com",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    let db;
+    try {
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      db = getFirestore(app);
+
+      signInAnonymously(auth).catch(err => console.log("Auth notice:", err));
+      onAuthStateChanged(auth, (user) => {
+        document.getElementById('auth-status').innerText = user ? "● Live Sync Active" : "Connecting...";
+      });
+    } catch (e) {
+      console.error("Firebase init error:", e);
+    }
+
+    const isMobile = window.innerWidth < 768;
+    const initialZoom = isMobile ? 7 : 11;
+
+    // Initialize Leaflet Map
+    const map = L.map('map', { zoomControl: false }).setView([51.5074, -0.1278], initialZoom);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    setTimeout(() => map.invalidateSize(), 150);
+
+    // Reset map view recalculations on popup close
+    map.on('popupclose', () => {
+      window.scrollTo(0, 0);
+      setTimeout(() => map.invalidateSize(), 200);
+    });
+
+    // OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(map);
+
+    // Custom glowing theme-pink marker icon
+    const pinkMarkerIcon = L.divIcon({
+      className: 'custom-pink-marker',
+      html: `<div style="background-color: #f849c1; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #1e1e1e; box-shadow: 0 0 10px #f849c1;"></div>`,
+      iconSize: [16, 16],
+      iconAnchor: [8, 8]
+    });
+
+    let venues = [];
+    let markersLayer = L.layerGroup().addTo(map);
+
+    const defaultVenues = [
+      { id: 'default-1', name: "The Black Heart", genre: "Rock / Metal / DIY", lat: 51.5385, lng: -0.1415, note: "Legendary Camden rock pub with incredible atmosphere and upstairs gigs.", author: "Molly" },
+      { id: 'default-2', name: "New Cross Inn", genre: "Punk / Alternative / Indie", lat: 51.4745, lng: -0.0385, note: "Heart of South London's grassroots live music scene.", author: "Molly" }
+    ];
+
+    async function seedDefaultsIfNeeded() {
+      if (!db) return;
+      try {
+        const snapshot = await getDocs(collection(db, "venues"));
+        if (snapshot.empty) {
+          for (const v of defaultVenues) {
+            await addDoc(collection(db, "venues"), { name: v.name, genre: v.genre, lat: v.lat, lng: v.lng, note: v.note, author: v.author, createdAt: Date.now() });
+          }
+        }
+      } catch(e) {
+        renderVenues(defaultVenues);
+      }
+    }
+    seedDefaultsIfNeeded();
+
+    if (db) {
+      try {
+        onSnapshot(collection(db, "venues"), (snapshot) => {
+          venues = [];
+          snapshot.forEach((doc) => {
+            venues.push({ id: doc.id, ...doc.data() });
+          });
+          renderVenues(venues);
+        }, (error) => {
+          renderVenues(defaultVenues);
+        });
+      } catch (e) {
+        renderVenues(defaultVenues);
+      }
+    } else {
+      renderVenues(defaultVenues);
+    }
+
+    function renderVenues(filteredVenues) {
+      markersLayer.clearLayers();
+      const listContainer = document.getElementById('venue-list');
+      listContainer.innerHTML = '';
+
+      if (!filteredVenues || filteredVenues.length === 0) {
+        listContainer.innerHTML = '<p class="text-xs text-gray-400 text-center py-6">No venues found. Click the map to add one!</p>';
+        return;
+      }
+
+      filteredVenues.forEach(v => {
+        const marker = L.marker([v.lat, v.lng], { icon: pinkMarkerIcon }).addTo(markersLayer);
+        marker.bindPopup(`
+          <div style="font-family:sans-serif; min-width:180px;">
+            <h3 style="color:#f849c1; font-weight:bold; font-size:15px; margin:0 0 4px 0;">${v.name}</h3>
+            <p style="color:#66d575; font-size:12px; margin:0 0 4px 0;"><strong>Genre:</strong> ${v.genre}</p>
+            <p style="color:#aaa; font-size:11px; margin:0 0 6px 0;"><strong>Marked by:</strong> ${v.author || 'Anonymous'}</p>
+            <p style="color:#ccc; font-size:12px; margin:0;">${v.note || 'No notes provided.'}</p>
+          </div>
+        `);
+
+        const card = document.createElement('div');
+        card.className = "bg-[#1e1e1e] border border-[#f849c1]/40 rounded p-3 hover:border-[#66d575] cursor-pointer transition shadow";
+        card.innerHTML = `
+          <div class="flex justify-between items-start">
+            <h4 class="font-bold text-sm text-[#f849c1]">${v.name}</h4>
+            <span class="text-[10px] bg-[#66d575]/20 text-[#66d575] px-1.5 py-0.5 rounded">${v.genre}</span>
+          </div>
+          <p class="text-xs text-gray-300 mt-1 line-clamp-2">${v.note || ''}</p>
+          <div class="text-[10px] text-gray-400 mt-2">Marked by: <span class="text-[#f849c1]">${v.author || 'Anonymous'}</span></div>
+        `;
+        card.onclick = () => {
+          map.setView([v.lat, v.lng], 13);
+          marker.openPopup();
+          if (window.innerWidth < 768) toggleSidebar();
+        };
+        listContainer.appendChild(card);
+      });
+    }
+
+    window.toggleSidebar = () => {
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      sidebar.classList.toggle('-translate-x-full');
+      backdrop.classList.toggle('hidden');
+      setTimeout(() => map.
