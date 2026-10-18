@@ -1,292 +1,236 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>The Grapevine Community</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <style>
-    @import url('https://db.onlinewebfonts.com/c/33a778322e7d57ee578df9e00a59d75b?family=Monte+Stella+VF+Trial+Medium');
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+  import { getFirestore, collection, addDoc, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    body { background-color: #1e1e1e; color: #66d575; font-family: sans-serif; }
-    
-    .brand-title {
-      font-family: "Monte Stella VF Trial Medium", "Monte Stella", sans-serif;
-      font-weight: 500;
-    }
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY_HERE",
+    authDomain: "the-grapevine-collective.firebaseapp.com",
+    projectId: "the-grapevine-collective",
+    storageBucket: "the-grapevine-collective.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
 
-    .leaflet-popup-content-wrapper, .leaflet-popup-tip {
-      background: #1e1e1e !important;
-      color: #66d575 !important;
-      border: 2px solid #f849c1;
-    }
-    
-    .custom-input {
-      background: #121212;
-      color: #66d575;
-      border: 1px solid #f849c1;
-      padding: 8px 12px;
-      width: 100%;
-      border-radius: 4px;
-      margin-top: 4px;
-      margin-bottom: 8px;
-      font-size: 16px !important; 
-    }
-    .custom-input:focus { outline: none; border-color: #66d575; }
-  </style>
-</head>
-<body class="flex flex-col h-[100dvh] overflow-hidden m-0 p-0">
+  let db;
+  try {
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    db = getFirestore(app);
 
-  <!-- Header -->
-  <header class="bg-[#121212] border-b-4 border-[#f849c1] px-3 md:px-6 py-3 flex justify-between items-center z-30 shadow-lg relative flex-shrink-0">
-    <div class="flex items-center space-x-2 md:space-x-3 overflow-hidden">
-      <!-- Grapevine Logo Image -->
-      <img src="pink no outline.png" alt="Grapevine Logo" class="w-7 h-7 md:w-9 md:h-9 object-contain flex-shrink-0" onerror="this.style.display='none'">
-      <h1 class="text-base md:text-2xl text-[#f849c1] brand-title truncate">The Grapevine</h1>
-    </div>
-    
-    <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
-      <span id="auth-status" class="text-[10px] text-gray-400 hidden lg:inline">Connecting...</span>
-      <!-- Mobile Directory Toggle Button -->
-      <button onclick="toggleSidebar()" class="md:hidden bg-[#f849c1] text-[#1e1e1e] font-bold px-3 py-1.5 rounded text-xs whitespace-nowrap shadow-md hover:bg-[#66d575] transition">
-        📁 Directory
-      </button>
-      <div class="hidden md:block text-xs md:text-sm text-[#66d575] bg-[#1e1e1e] px-3 py-1.5 rounded border border-[#66d575]/40">
-        💡 <span class="font-semibold">Click anywhere on the map</span> to recommend a venue!
-      </div>
-    </div>
-  </header>
+    signInAnonymously(auth).catch(err => console.log("Auth notice:", err));
+    onAuthStateChanged(auth, (user) => {
+      document.getElementById('auth-status').innerText = user ? "● Live Sync Active" : "Connecting...";
+    });
+  } catch (e) {
+    console.error("Firebase init error:", e);
+  }
 
-  <!-- Main Container (Fixed flex sizing to prevent map collapse) -->
-  <div class="flex flex-1 relative overflow-hidden w-full">
-    
-    <!-- Dark Backdrop for mobile drawer -->
-    <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/70 z-40 hidden md:hidden transition-opacity"></div>
+  const isMobile = window.innerWidth < 768;
+  const initialZoom = isMobile ? 7 : 11;
 
-    <!-- Sidebar / Mobile Slide-Out Drawer -->
-    <aside id="sidebar" class="fixed top-[57px] md:top-0 bottom-0 left-0 z-50 w-[85vw] max-w-sm bg-[#141414] border-r border-[#f849c1]/30 flex flex-col shadow-2xl transform -translate-x-full transition-transform duration-300 md:relative md:w-80 md:translate-x-0">
-      <div class="p-4 border-b border-[#262626] flex justify-between items-center bg-[#101010]">
-        <h2 class="text-sm font-semibold text-[#f849c1] uppercase tracking-wider">Community Directory</h2>
-        <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-white text-2xl font-bold px-2 py-1">&times;</button>
-      </div>
-      <div class="p-4 border-b border-[#262626] bg-[#141414]">
-        <input type="text" id="search-input" placeholder="Search venues or genres..." class="custom-input" oninput="filterVenues()">
-      </div>
-      <div id="venue-list" class="flex-1 overflow-y-auto p-4 space-y-3">
-        <p class="text-xs text-gray-400 text-center py-6">Loading directory...</p>
-      </div>
-    </aside>
+  const map = L.map('map', { zoomControl: false }).setView([51.5074, -0.1278], initialZoom);
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    <!-- Map Area (Explicit height/width fill) -->
-    <main id="map" class="flex-1 w-full h-full z-0 bg-[#1e1e1e]"></main>
+  setTimeout(() => map.invalidateSize(), 100);
+  setTimeout(() => map.invalidateSize(), 500);
 
-  </div>
+  map.on('popupclose', () => {
+    window.scrollTo(0, 0);
+    setTimeout(() => map.invalidateSize(), 200);
+  });
 
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(map);
 
-  <!-- Firebase Real-Time Cloud Script -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  const pinkMarkerIcon = L.divIcon({
+    className: 'custom-pink-marker',
+    html: `<div style="background-color: #f849c1; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #1e1e1e; box-shadow: 0 0 10px #f849c1;"></div>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8]
+  });
 
-    // ⚡ YOUR FIREBASE CONFIG CREDENTIALS ⚡
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY_HERE",
-      authDomain: "the-grapevine-collective.firebaseapp.com",
-      projectId: "the-grapevine-collective",
-      storageBucket: "the-grapevine-collective.appspot.com",
-      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-      appId: "YOUR_APP_ID"
-    };
+  let venues = [];
+  let markersLayer = L.layerGroup().addTo(map);
 
-    let db;
+  // Added address field to default seed venues
+  const defaultVenues = [
+    { id: 'default-1', name: "The Black Heart", genre: "Rock / Metal / DIY", address: "2-3 Greenland Pl, London NW1 0AP", lat: 51.5385, lng: -0.1415, note: "Legendary Camden rock pub with incredible atmosphere and upstairs gigs.", author: "Molly" },
+    { id: 'default-2', name: "New Cross Inn", genre: "Punk / Alternative / Indie", address: "323 New Cross Rd, London SE14 6AS", lat: 51.4745, lng: -0.0385, note: "Heart of South London's grassroots live music scene.", author: "Molly" }
+  ];
+
+  venues = defaultVenues;
+  renderVenues(venues);
+
+  async function seedDefaultsIfNeeded() {
+    if (!db) return;
     try {
-      const app = initializeApp(firebaseConfig);
-      const auth = getAuth(app);
-      db = getFirestore(app);
+      const snapshot = await getDocs(collection(db, "venues"));
+      if (snapshot.empty) {
+        for (const v of defaultVenues) {
+          await addDoc(collection(db, "venues"), { name: v.name, genre: v.genre, address: v.address, lat: v.lat, lng: v.lng, note: v.note, author: v.author, createdAt: Date.now() });
+        }
+      }
+    } catch(e) {
+      console.log("Using local venues.");
+    }
+  }
+  seedDefaultsIfNeeded();
 
-      signInAnonymously(auth).catch(err => console.log("Auth notice:", err));
-      onAuthStateChanged(auth, (user) => {
-        document.getElementById('auth-status').innerText = user ? "● Live Sync Active" : "Connecting...";
+  if (db) {
+    try {
+      onSnapshot(collection(db, "venues"), (snapshot) => {
+        if (!snapshot.empty) {
+          venues = [];
+          snapshot.forEach((doc) => {
+            venues.push({ id: doc.id, ...doc.data() });
+          });
+          renderVenues(venues);
+        }
+      }, (error) => {
+        console.log("Snapshot fallback active");
       });
     } catch (e) {
-      console.error("Firebase init error:", e);
+      console.log("Firestore listener setup error");
+    }
+  }
+
+  function renderVenues(filteredVenues) {
+    markersLayer.clearLayers();
+    const listContainer = document.getElementById('venue-list');
+    listContainer.innerHTML = '';
+
+    if (!filteredVenues || filteredVenues.length === 0) {
+      listContainer.innerHTML = '<p class="text-xs text-gray-400 text-center py-6">No venues found. Click the map to add one!</p>';
+      return;
     }
 
-    const isMobile = window.innerWidth < 768;
-    const initialZoom = isMobile ? 7 : 11;
+    filteredVenues.forEach(v => {
+      const marker = L.marker([v.lat, v.lng], { icon: pinkMarkerIcon }).addTo(markersLayer);
+      
+      // Popup includes address & direct Google Maps navigation link
+      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(v.name + " " + (v.address || ''))}`;
 
-    // Initialize Leaflet Map
-    const map = L.map('map', { zoomControl: false }).setView([51.5074, -0.1278], initialZoom);
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-    // Force map tile calculation immediately and after layout paint
-    setTimeout(() => map.invalidateSize(), 100);
-    setTimeout(() => map.invalidateSize(), 500);
-
-    map.on('popupclose', () => {
-      window.scrollTo(0, 0);
-      setTimeout(() => map.invalidateSize(), 200);
-    });
-
-    // OpenStreetMap tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 19
-    }).addTo(map);
-
-    // Custom glowing theme-pink marker icon
-    const pinkMarkerIcon = L.divIcon({
-      className: 'custom-pink-marker',
-      html: `<div style="background-color: #f849c1; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #1e1e1e; box-shadow: 0 0 10px #f849c1;"></div>`,
-      iconSize: [16, 16],
-      iconAnchor: [8, 8]
-    });
-
-    let venues = [];
-    let markersLayer = L.layerGroup().addTo(map);
-
-    const defaultVenues = [
-      { id: 'default-1', name: "The Black Heart", genre: "Rock / Metal / DIY", lat: 51.5385, lng: -0.1415, note: "Legendary Camden rock pub with incredible atmosphere and upstairs gigs.", author: "Molly" },
-      { id: 'default-2', name: "New Cross Inn", genre: "Punk / Alternative / Indie", lat: 51.4745, lng: -0.0385, note: "Heart of South London's grassroots live music scene.", author: "Molly" }
-    ];
-
-    // Render default venues instantly so screen isn't blank while connecting
-    venues = defaultVenues;
-    renderVenues(venues);
-
-    async function seedDefaultsIfNeeded() {
-      if (!db) return;
-      try {
-        const snapshot = await getDocs(collection(db, "venues"));
-        if (snapshot.empty) {
-          for (const v of defaultVenues) {
-            await addDoc(collection(db, "venues"), { name: v.name, genre: v.genre, lat: v.lat, lng: v.lng, note: v.note, author: v.author, createdAt: Date.now() });
-          }
-        }
-      } catch(e) {
-        console.log("Using local venues.");
-      }
-    }
-    seedDefaultsIfNeeded();
-
-    if (db) {
-      try {
-        onSnapshot(collection(db, "venues"), (snapshot) => {
-          if (!snapshot.empty) {
-            venues = [];
-            snapshot.forEach((doc) => {
-              venues.push({ id: doc.id, ...doc.data() });
-            });
-            renderVenues(venues);
-          }
-        }, (error) => {
-          console.log("Snapshot fallback active");
-        });
-      } catch (e) {
-        console.log("Firestore listener setup error");
-      }
-    }
-
-    function renderVenues(filteredVenues) {
-      markersLayer.clearLayers();
-      const listContainer = document.getElementById('venue-list');
-      listContainer.innerHTML = '';
-
-      if (!filteredVenues || filteredVenues.length === 0) {
-        listContainer.innerHTML = '<p class="text-xs text-gray-400 text-center py-6">No venues found. Click the map to add one!</p>';
-        return;
-      }
-
-      filteredVenues.forEach(v => {
-        const marker = L.marker([v.lat, v.lng], { icon: pinkMarkerIcon }).addTo(markersLayer);
-        marker.bindPopup(`
-          <div style="font-family:sans-serif; min-width:180px;">
-            <h3 style="color:#f849c1; font-weight:bold; font-size:15px; margin:0 0 4px 0;">${v.name}</h3>
-            <p style="color:#66d575; font-size:12px; margin:0 0 4px 0;"><strong>Genre:</strong> ${v.genre}</p>
-            <p style="color:#aaa; font-size:11px; margin:0 0 6px 0;"><strong>Marked by:</strong> ${v.author || 'Anonymous'}</p>
-            <p style="color:#ccc; font-size:12px; margin:0;">${v.note || 'No notes provided.'}</p>
-          </div>
-        `);
-
-        const card = document.createElement('div');
-        card.className = "bg-[#1e1e1e] border border-[#f849c1]/40 rounded p-3 hover:border-[#66d575] cursor-pointer transition shadow";
-        card.innerHTML = `
-          <div class="flex justify-between items-start">
-            <h4 class="font-bold text-sm text-[#f849c1]">${v.name}</h4>
-            <span class="text-[10px] bg-[#66d575]/20 text-[#66d575] px-1.5 py-0.5 rounded">${v.genre}</span>
-          </div>
-          <p class="text-xs text-gray-300 mt-1 line-clamp-2">${v.note || ''}</p>
-          <div class="text-[10px] text-gray-400 mt-2">Marked by: <span class="text-[#f849c1]">${v.author || 'Anonymous'}</span></div>
-        `;
-        card.onclick = () => {
-          map.setView([v.lat, v.lng], 13);
-          marker.openPopup();
-          if (window.innerWidth < 768) toggleSidebar();
-        };
-        listContainer.appendChild(card);
-      });
-    }
-
-    window.toggleSidebar = () => {
-      const sidebar = document.getElementById('sidebar');
-      const backdrop = document.getElementById('sidebar-backdrop');
-      sidebar.classList.toggle('-translate-x-full');
-      backdrop.classList.toggle('hidden');
-      setTimeout(() => map.invalidateSize(), 300);
-    }
-
-    map.on('click', (e) => {
-      const { lat, lng } = e.latlng;
-      const popupContent = `
-        <div style="min-width: 200px">
-          <h4 style="margin:0 0 6px 0; color:#f849c1; font-weight:bold;">Add Venue Recommendation</h4>
-          <label style="font-size:11px; color:#66d575;">Venue Name:</label>
-          <input id="new-name" class="custom-input" placeholder="e.g. The Sound Box" />
-          <label style="font-size:11px; color:#66d575;">Genre / Vibe:</label>
-          <input id="new-genre" class="custom-input" placeholder="e.g. Indie / Jazz" />
-          <label style="font-size:11px; color:#66d575;">Your Name (Optional):</label>
-          <input id="new-author" class="custom-input" placeholder="e.g. Molly" />
-          <label style="font-size:11px; color:#66d575;">Community Note:</label>
-          <input id="new-note" class="custom-input" placeholder="Why do you love it?" />
-          <button onclick="saveNewVenue(${lat}, ${lng})" style="width:100%; background:#f849c1; color:#1e1e1e; font-weight:bold; padding:8px; border:none; border-radius:4px; cursor:pointer; margin-top:6px;">Submit Pin</button>
+      marker.bindPopup(`
+        <div style="font-family:sans-serif; min-width:180px;">
+          <h3 style="color:#f849c1; font-weight:bold; font-size:15px; margin:0 0 4px 0;">${v.name}</h3>
+          ${v.address ? `<p style="color:#aaa; font-size:11px; margin:0 0 4px 0;">📍 ${v.address}</p>` : ''}
+          <p style="color:#66d575; font-size:12px; margin:0 0 4px 0;"><strong>Genre:</strong> ${v.genre}</p>
+          <p style="color:#888; font-size:10px; margin:0 0 6px 0;"><strong>Marked by:</strong> ${v.author || 'Anonymous'}</p>
+          <p style="color:#ccc; font-size:12px; margin:0 0 8px 0;">${v.note || 'No notes provided.'}</p>
+          <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; font-size:11px; color:#f849c1; text-decoration:underline;">Get Directions ↗</a>
         </div>
+      `);
+
+      const card = document.createElement('div');
+      card.className = "bg-[#1e1e1e] border border-[#f849c1]/40 rounded p-3 hover:border-[#66d575] cursor-pointer transition shadow";
+      card.innerHTML = `
+        <div class="flex justify-between items-start">
+          <h4 class="font-bold text-sm text-[#f849c1]">${v.name}</h4>
+          <span class="text-[10px] bg-[#66d575]/20 text-[#66d575] px-1.5 py-0.5 rounded">${v.genre}</span>
+        </div>
+        ${v.address ? `<div class="text-[11px] text-gray-400 mt-1 truncate">📍 ${v.address}</div>` : ''}
+        <p class="text-xs text-gray-300 mt-1 line-clamp-2">${v.note || ''}</p>
+        <div class="text-[10px] text-gray-400 mt-2">Marked by: <span class="text-[#f849c1]">${v.author || 'Anonymous'}</span></div>
       `;
-      L.popup().setLatLng(e.latlng).setContent(popupContent).openOn(map);
+      card.onclick = () => {
+        map.setView([v.lat, v.lng], 14);
+        marker.openPopup();
+        if (window.innerWidth < 768) toggleSidebar();
+      };
+      listContainer.appendChild(card);
     });
+  }
 
-    window.saveNewVenue = async (lat, lng) => {
-      const name = document.getElementById('new-name').value.trim();
-      const genre = document.getElementById('new-genre').value.trim();
-      const author = document.getElementById('new-author').value.trim() || "Anonymous";
-      const note = document.getElementById('new-note').value.trim();
+  window.toggleSidebar = () => {
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    sidebar.classList.toggle('-translate-x-full');
+    backdrop.classList.toggle('hidden');
+    setTimeout(() => map.invalidateSize(), 300);
+  }
 
-      if (!name || !genre) {
-        alert("Please provide at least a Venue Name and Genre!");
-        return;
+  // Automatic Reverse Geocoding when clicking on map
+  map.on('click', async (e) => {
+    const { lat, lng } = e.latlng;
+
+    // Show initial popup while fetching address
+    const tempPopup = L.popup()
+      .setLatLng(e.latlng)
+      .setContent(`<div style="font-size:12px; color:#66d575;">Fetching address...</div>`)
+      .openOn(map);
+
+    let fetchedAddress = "";
+
+    try {
+      // Free OpenStreetMap Reverse Geocoding API
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+      const data = await response.json();
+      if (data && data.display_name) {
+        // Format to a concise street address
+        const parts = data.display_name.split(',');
+        fetchedAddress = parts.slice(0, 3).join(',').trim();
       }
+    } catch (err) {
+      console.log("Could not fetch address automatically.");
+    }
 
-      try {
-        await addDoc(collection(db, "venues"), { name, genre, lat, lng, note, author, createdAt: Date.now() });
-        map.closePopup();
-        window.scrollTo(0, 0);
-      } catch (err) {
-        alert("Error saving venue pin: " + err.message);
-      }
-    };
+    const popupContent = `
+      <div style="min-width: 200px">
+        <h4 style="margin:0 0 6px 0; color:#f849c1; font-weight:bold;">Add Venue Recommendation</h4>
+        <label style="font-size:11px; color:#66d575;">Venue Name:</label>
+        <input id="new-name" class="custom-input" placeholder="e.g. The Sound Box" />
+        
+        <label style="font-size:11px; color:#66d575;">Address / Location:</label>
+        <input id="new-address" class="custom-input" value="${fetchedAddress}" placeholder="e.g. 12 High St, London" />
 
-    window.filterVenues = () => {
-      const query = document.getElementById('search-input').value.toLowerCase();
-      const filtered = venues.filter(v => 
-        v.name.toLowerCase().includes(query) || v.genre.toLowerCase().includes(query) || (v.author && v.author.toLowerCase().includes(query))
-      );
-      renderVenues(filtered);
-    };
-  </script>
-</body>
-</html>
+        <label style="font-size:11px; color:#66d575;">Genre / Vibe:</label>
+        <input id="new-genre" class="custom-input" placeholder="e.g. Indie / Jazz" />
+        
+        <label style="font-size:11px; color:#66d575;">Your Name (Optional):</label>
+        <input id="new-author" class="custom-input" placeholder="e.g. Molly" />
+        
+        <label style="font-size:11px; color:#66d575;">Community Note:</label>
+        <input id="new-note" class="custom-input" placeholder="Why do you love it?" />
+        
+        <button onclick="saveNewVenue(${lat}, ${lng})" style="width:100%; background:#f849c1; color:#1e1e1e; font-weight:bold; padding:8px; border:none; border-radius:4px; cursor:pointer; margin-top:6px;">Submit Pin</button>
+      </div>
+    `;
+
+    tempPopup.setContent(popupContent);
+  });
+
+  window.saveNewVenue = async (lat, lng) => {
+    const name = document.getElementById('new-name').value.trim();
+    const address = document.getElementById('new-address').value.trim();
+    const genre = document.getElementById('new-genre').value.trim();
+    const author = document.getElementById('new-author').value.trim() || "Anonymous";
+    const note = document.getElementById('new-note').value.trim();
+
+    if (!name || !genre) {
+      alert("Please provide at least a Venue Name and Genre!");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "venues"), { name, address, genre, lat, lng, note, author, createdAt: Date.now() });
+      map.closePopup();
+      window.scrollTo(0, 0);
+    } catch (err) {
+      alert("Error saving venue pin: " + err.message);
+    }
+  };
+
+  window.filterVenues = () => {
+    const query = document.getElementById('search-input').value.toLowerCase();
+    const filtered = venues.filter(v => 
+      v.name.toLowerCase().includes(query) || 
+      v.genre.toLowerCase().includes(query) || 
+      (v.address && v.address.toLowerCase().includes(query)) ||
+      (v.author && v.author.toLowerCase().includes(query))
+    );
+    renderVenues(filtered);
+  };
+</script>
