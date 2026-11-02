@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>The Grapevine Community</title>
+  <title>Grassroots Venue Map — The Grapevine</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Leaflet CSS -->
@@ -16,6 +16,20 @@
     .brand-title {
       font-family: "Monte Stella VF Trial Medium", "Monte Stella", sans-serif;
       font-weight: 500;
+    }
+
+    .brand-logo {
+      height: 28px;
+      width: auto;
+      filter: drop-shadow(0 0 6px #f849c1);
+      flex-shrink: 0;
+    }
+
+    .brand-title-img {
+      max-height: 18px;
+      width: auto;
+      object-fit: contain;
+      filter: invert(1);
     }
 
     .leaflet-popup-content-wrapper, .leaflet-popup-tip {
@@ -43,12 +57,17 @@
   <!-- Header -->
   <header class="bg-[#121212] border-b-4 border-[#f849c1] px-3 md:px-6 py-3 flex justify-between items-center z-30 shadow-lg relative flex-shrink-0">
     <div class="flex items-center space-x-2 md:space-x-3 overflow-hidden">
-      <img src="pink no outline.png" alt="Grapevine Logo" class="w-7 h-7 md:w-9 md:h-9 object-contain flex-shrink-0" onerror="this.style.display='none'">
-      <h1 class="text-base md:text-2xl text-[#f849c1] brand-title truncate">The Grapevine</h1>
+      <img src="grape-logo.png" alt="Grapevine Logo" class="brand-logo" onerror="this.style.display='none'">
+      <img src="grapevine-title.png" alt="The Grapevine" class="brand-title-img" onerror="this.onerror=null; this.src=''; this.outerHTML='<h1 class=\'text-base md:text-2xl text-[#f849c1] brand-title truncate\'>The Grapevine</h1>'">
     </div>
     
-    <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
+    <div class="flex items-center space-x-3 flex-shrink-0 ml-2">
       <span id="auth-status" class="text-[10px] text-gray-400 hidden lg:inline">Connecting...</span>
+      
+      <!-- Unified Cross-Links Back to Main Hub & Notice Board -->
+      <a href="https://mollythirza.github.io/TheGrapevineHub/" class="text-xs text-gray-300 hover:text-[#f849c1] uppercase transition">← Wall</a>
+      <a href="https://mollythirza.github.io/TheGrapevineHub/notice-board.html" class="text-xs text-gray-300 hover:text-[#f849c1] uppercase transition hidden sm:inline">Notice Board</a>
+
       <button onclick="toggleSidebar()" class="md:hidden bg-[#f849c1] text-[#1e1e1e] font-bold px-3 py-1.5 rounded text-xs whitespace-nowrap shadow-md hover:bg-[#66d575] transition">
         📁 Directory
       </button>
@@ -196,7 +215,6 @@
       filteredVenues.forEach(v => {
         const marker = L.marker([v.lat, v.lng], { icon: pinkMarkerIcon }).addTo(markersLayer);
         
-        // Display address if available, or fall back to short lat/lng coordinates
         const displayAddress = v.address || `${v.lat.toFixed(4)}, ${v.lng.toFixed(4)}`;
         const mapsQuery = v.address ? `${v.name}, ${v.address}` : `${v.lat},${v.lng}`;
         const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
@@ -240,19 +258,15 @@
       setTimeout(() => map.invalidateSize(), 300);
     }
 
-    // Address lookup on map click
     map.on('click', async (e) => {
       const { lat, lng } = e.latlng;
-
       let fetchedAddress = "";
 
       try {
-        // Included email param to bypass OpenStreetMap query blocks
         const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&email=thegrapevinecommunity@gmail.com`);
         const data = await response.json();
         if (data && data.display_name) {
           const parts = data.display_name.split(',');
-          // Grabs the top 3 lines (e.g. Street, Borough, City)
           fetchedAddress = parts.slice(0, 3).join(',').trim();
         }
       } catch (err) {
