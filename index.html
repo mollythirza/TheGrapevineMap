@@ -23,7 +23,7 @@
       overflow: hidden;
     }
 
-    /* Fixed Top Black Header */
+    /* Standardized Header matching all sub-pages */
     header {
       position: fixed;
       top: 0;
@@ -74,7 +74,7 @@
       text-shadow: 0 0 8px #ff007f;
     }
 
-    /* Full-Height Map Container Fix */
+    /* Map Viewport Container */
     #map {
       width: 100vw;
       height: calc(100vh - 60px);
@@ -83,6 +83,11 @@
       left: 0;
       z-index: 1;
       background-color: #111;
+    }
+
+    /* Pure CSS Dark-Mode Filter for OpenStreetMap Tiles (No API key needed!) */
+    .dark-tiles {
+      filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
     }
 
     /* Sidebar Directory */
@@ -118,7 +123,7 @@
       box-shadow: 0 0 8px rgba(255, 0, 127, 0.4);
     }
 
-    /* Leaflet Popups matching theme */
+    /* Leaflet Popups matching neon theme */
     .leaflet-popup-content-wrapper, .leaflet-popup-tip {
       background: #141414 !important;
       color: #fff !important;
@@ -127,7 +132,7 @@
       border-radius: 6px !important;
     }
 
-    /* Geocoder Address Search Box Styling */
+    /* Geocoder Address Search Styling */
     .leaflet-control-geocoder {
       background: #141414 !important;
       border: 2px solid #ff007f !important;
@@ -148,14 +153,14 @@
 </head>
 <body class="overflow-hidden m-0 p-0">
 
-  <!-- Header -->
+  <!-- Header Header -->
   <header>
     <a href="../index.html" class="brand-container">
       <img src="grape-logo.png" alt="Grapevine Logo" class="brand-logo" onerror="this.style.display='none'">
       <img src="grapevine-title.png" alt="The Grapevine" class="brand-title" onerror="this.onerror=null; this.src=''; this.outerHTML='<h1 style=\'color:#ff007f;font-size:16px;\'>THE GRAPEVINE</h1>'">
     </a>
     <div class="nav-links flex items-center gap-4">
-      <span id="auth-status" class="text-[10px] text-gray-400 hidden sm:inline">● Live Sync</span>
+      <span id="auth-status" class="text-[10px] text-gray-400 hidden sm:inline">● Live Sync Active</span>
       <a href="../index.html">← Back to Hub</a>
     </div>
   </header>
@@ -166,7 +171,7 @@
       <h2 class="text-xs font-bold text-[#ff007f] uppercase tracking-wider">Community Directory</h2>
     </div>
     <div class="p-4 border-b border-[#262626]">
-      <input type="text" id="search-input" placeholder="Search venues, genres, addresses..." class="custom-input" oninput="filterVenues()">
+      <input type="text" id="search-input" placeholder="Search venues, genres, addresses..." class="custom-input" oninput="window.filterVenues()">
     </div>
     <div id="venue-list" class="flex-1 overflow-y-auto p-4 space-y-3">
       <p class="text-xs text-gray-400 text-center py-6">Loading directory...</p>
@@ -200,22 +205,20 @@
     const db = getDatabase(app);
     const venuesRef = ref(db, 'venues');
 
-    // Initialize Map
+    // Initialize Map View
     const map = L.map('map', { zoomControl: false }).setView([51.5074, -0.1278], 11);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // Reliable Dark Tiles Engine (CartoDB Dark Matter with OpenStreetMap fallback)
-    const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      subdomains: 'abcd',
+    // Reliable Free OpenStreetMap Dark Tile Layer (No API Key Required)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      className: 'dark-tiles',
       maxZoom: 19
     }).addTo(map);
 
-    // Ensure map tiles calculate correct container size after DOM load
-    setTimeout(() => { map.invalidateSize(); }, 200);
-    setTimeout(() => { map.invalidateSize(); }, 600);
+    setTimeout(() => { map.invalidateSize(); }, 300);
 
-    // Address Search Geocoder Control
+    // Address Search Geocoder Box
     const geocoder = L.Control.geocoder({
       defaultMarkGeocode: false,
       placeholder: "Search address, street, or venue...",
@@ -274,9 +277,7 @@
 
       if (data) {
         Object.keys(data).forEach((key) => {
-          if (!venues.some(v => v.id === key)) {
-            venues.push({ id: key, ...data[key] });
-          }
+          venues.push({ id: key, ...data[key] });
         });
       }
       renderVenues(venues);
