@@ -8,6 +8,9 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <!-- Leaflet Geocoder (Address Search) CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+  
   <style>
     @import url('https://db.onlinewebfonts.com/c/33a778322e7d57ee578df9e00a59d75b?family=Monte+Stella+VF+Trial+Medium');
 
@@ -50,6 +53,44 @@
       font-size: 16px !important; 
     }
     .custom-input:focus { outline: none; border-color: #66d575; }
+
+    /* Customizing the Address Search Geocoder Box to match Neon Pink branding */
+    .leaflet-control-geocoder {
+      background: #121212 !important;
+      border: 2px solid #f849c1 !important;
+      border-radius: 6px !important;
+      box-shadow: 0 0 15px rgba(248, 73, 193, 0.4) !important;
+    }
+
+    .leaflet-control-geocoder-icon {
+      filter: invert(1) hue-rotate(270deg) !important;
+    }
+
+    .leaflet-control-geocoder-form input {
+      color: #fff !important;
+      background: #121212 !important;
+      font-family: inherit !important;
+    }
+
+    .leaflet-control-geocoder-throbber .leaflet-control-geocoder-icon {
+      background-color: #f849c1 !important;
+    }
+
+    .leaflet-control-geocoder-alternatives {
+      background: #141414 !important;
+      border: 1px solid #f849c1 !important;
+      color: #fff !important;
+    }
+
+    .leaflet-control-geocoder-alternatives a {
+      color: #aaa !important;
+      border-bottom: 1px solid #222 !important;
+    }
+
+    .leaflet-control-geocoder-alternatives a:hover {
+      background: #f849c1 !important;
+      color: #000 !important;
+    }
   </style>
 </head>
 <body class="flex flex-col h-[100dvh] overflow-hidden m-0 p-0">
@@ -62,9 +103,9 @@
     </div>
     
     <div class="flex items-center space-x-3 flex-shrink-0 ml-2">
-      <span id="auth-status" class="text-[10px] text-gray-400 hidden lg:inline">Connecting...</span>
+      <span id="auth-status" class="text-[10px] text-gray-400 hidden lg:inline">● Live Sync Active</span>
       
-      <!-- Cross-Link back strictly to the Main Hub -->
+      <!-- Unified Link back to Main Hub -->
       <a href="index.html" class="text-xs text-gray-300 hover:text-[#f849c1] uppercase transition font-bold">← Back to Hub</a>
 
       <button onclick="toggleSidebar()" class="md:hidden bg-[#f849c1] text-[#1e1e1e] font-bold px-3 py-1.5 rounded text-xs whitespace-nowrap shadow-md hover:bg-[#66d575] transition">
@@ -80,7 +121,7 @@
   <div class="flex flex-1 relative overflow-hidden w-full">
     <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/70 z-40 hidden md:hidden transition-opacity"></div>
 
-    <!-- Sidebar -->
+    <!-- Sidebar Directory -->
     <aside id="sidebar" class="fixed top-[57px] md:top-0 bottom-0 left-0 z-50 w-[85vw] max-w-sm bg-[#141414] border-r border-[#f849c1]/30 flex flex-col shadow-2xl transform -translate-x-full transition-transform duration-300 md:relative md:w-80 md:translate-x-0">
       <div class="p-4 border-b border-[#262626] flex justify-between items-center bg-[#101010]">
         <h2 class="text-sm font-semibold text-[#f849c1] uppercase tracking-wider">Community Directory</h2>
@@ -98,14 +139,14 @@
     <main id="map" class="flex-1 w-full h-full z-0 bg-[#1e1e1e]"></main>
   </div>
 
-  <!-- Leaflet JS -->
+  <!-- Leaflet JS & Leaflet Control Geocoder -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
-  <!-- Firebase Script -->
+  <!-- Firebase Realtime Database Integration -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBozbn-0iQNhjuAcmL-dYOUtbhIYTjccYk",
@@ -118,25 +159,58 @@
       measurementId: "G-V1KW1QSNWS"
     };
 
-    let db;
-    try {
-      const app = initializeApp(firebaseConfig);
-      const auth = getAuth(app);
-      db = getFirestore(app);
-
-      signInAnonymously(auth).catch(err => console.log("Auth notice:", err));
-      onAuthStateChanged(auth, (user) => {
-        document.getElementById('auth-status').innerText = user ? "● Live Sync Active" : "Connecting...";
-      });
-    } catch (e) {
-      console.error("Firebase init error:", e);
-    }
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const venuesRef = ref(db, 'venues');
 
     const isMobile = window.innerWidth < 768;
     const initialZoom = isMobile ? 7 : 11;
 
     const map = L.map('map', { zoomControl: false }).setView([51.5074, -0.1278], initialZoom);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    // Live Address Search Geocoder Box
+    const geocoder = L.Control.geocoder({
+      defaultMarkGeocode: false,
+      placeholder: "Search address, street, or venue...",
+      position: 'topright'
+    })
+    .on('markgeocode', function(e) {
+      const bbox = e.geocode.bbox;
+      const poly = L.polygon([
+        bbox.getSouthEast(),
+        bbox.getNorthEast(),
+        bbox.getNorthWest(),
+        bbox.getSouthWest()
+      ]);
+      map.fitBounds(poly.getBounds());
+      
+      L.popup()
+        .setLatLng(e.geocode.center)
+        .setContent(`
+          <div style="min-width: 200px">
+            <h4 style="margin:0 0 6px 0; color:#f849c1; font-weight:bold;">Pin Venue at Searched Address</h4>
+            <label style="font-size:11px; color:#66d575;">Venue Name:</label>
+            <input id="new-name" class="custom-input" placeholder="e.g. The Sound Box" />
+            
+            <label style="font-size:11px; color:#66d575;">Address / Location:</label>
+            <input id="new-address" class="custom-input" value="${e.geocode.name}" />
+
+            <label style="font-size:11px; color:#66d575;">Genre / Vibe:</label>
+            <input id="new-genre" class="custom-input" placeholder="e.g. Punk / Hardcore" />
+            
+            <label style="font-size:11px; color:#66d575;">Your Name (Optional):</label>
+            <input id="new-author" class="custom-input" placeholder="e.g. Molly" />
+            
+            <label style="font-size:11px; color:#66d575;">Community Note:</label>
+            <input id="new-note" class="custom-input" placeholder="Why do you love it?" />
+            
+            <button onclick="window.saveNewVenue(${e.geocode.center.lat}, ${e.geocode.center.lng})" style="width:100%; background:#f849c1; color:#1e1e1e; font-weight:bold; padding:8px; border:none; border-radius:4px; cursor:pointer; margin-top:6px;">Submit Pin</button>
+          </div>
+        `)
+        .openOn(map);
+    })
+    .addTo(map);
 
     setTimeout(() => map.invalidateSize(), 100);
     setTimeout(() => map.invalidateSize(), 500);
@@ -161,46 +235,26 @@
     let venues = [];
     let markersLayer = L.layerGroup().addTo(map);
 
+    // Fallback seed data if database node is empty
     const defaultVenues = [
       { id: 'default-1', name: "The Black Heart", genre: "Rock / Metal / DIY", address: "2-3 Greenland Pl, London NW1 0AP", lat: 51.5385, lng: -0.1415, note: "Legendary Camden rock pub with incredible atmosphere and upstairs gigs.", author: "Molly" },
       { id: 'default-2', name: "New Cross Inn", genre: "Punk / Alternative / Indie", address: "323 New Cross Rd, London SE14 6AS", lat: 51.4745, lng: -0.0385, note: "Heart of South London's grassroots live music scene.", author: "Molly" }
     ];
 
-    venues = defaultVenues;
-    renderVenues(venues);
+    // Realtime Database listener
+    onValue(venuesRef, (snapshot) => {
+      const data = snapshot.val();
+      venues = [];
 
-    async function seedDefaultsIfNeeded() {
-      if (!db) return;
-      try {
-        const snapshot = await getDocs(collection(db, "venues"));
-        if (snapshot.empty) {
-          for (const v of defaultVenues) {
-            await addDoc(collection(db, "venues"), { name: v.name, genre: v.genre, address: v.address, lat: v.lat, lng: v.lng, note: v.note, author: v.author, createdAt: Date.now() });
-          }
-        }
-      } catch(e) {
-        console.log("Using local venues.");
-      }
-    }
-    seedDefaultsIfNeeded();
-
-    if (db) {
-      try {
-        onSnapshot(collection(db, "venues"), (snapshot) => {
-          if (!snapshot.empty) {
-            venues = [];
-            snapshot.forEach((doc) => {
-              venues.push({ id: doc.id, ...doc.data() });
-            });
-            renderVenues(venues);
-          }
-        }, (error) => {
-          console.log("Snapshot fallback active");
+      if (data) {
+        Object.keys(data).forEach((key) => {
+          venues.push({ id: key, ...data[key] });
         });
-      } catch (e) {
-        console.log("Firestore listener setup error");
+      } else {
+        venues = defaultVenues;
       }
-    }
+      renderVenues(venues);
+    });
 
     function renderVenues(filteredVenues) {
       markersLayer.clearLayers();
@@ -208,7 +262,7 @@
       listContainer.innerHTML = '';
 
       if (!filteredVenues || filteredVenues.length === 0) {
-        listContainer.innerHTML = '<p class="text-xs text-gray-400 text-center py-6">No venues found. Click the map to add one!</p>';
+        listContainer.innerHTML = '<p class="text-xs text-gray-400 text-center py-6">No venues found. Search an address or click the map to add one!</p>';
         return;
       }
 
@@ -244,7 +298,7 @@
         card.onclick = () => {
           map.setView([v.lat, v.lng], 14);
           marker.openPopup();
-          if (window.innerWidth < 768) toggleSidebar();
+          if (window.innerWidth < 768) window.toggleSidebar();
         };
         listContainer.appendChild(card);
       });
@@ -256,7 +310,7 @@
       sidebar.classList.toggle('-translate-x-full');
       backdrop.classList.toggle('hidden');
       setTimeout(() => map.invalidateSize(), 300);
-    }
+    };
 
     map.on('click', async (e) => {
       const { lat, lng } = e.latlng;
@@ -291,7 +345,7 @@
           <label style="font-size:11px; color:#66d575;">Community Note:</label>
           <input id="new-note" class="custom-input" placeholder="Why do you love it?" />
           
-          <button onclick="saveNewVenue(${lat}, ${lng})" style="width:100%; background:#f849c1; color:#1e1e1e; font-weight:bold; padding:8px; border:none; border-radius:4px; cursor:pointer; margin-top:6px;">Submit Pin</button>
+          <button onclick="window.saveNewVenue(${lat}, ${lng})" style="width:100%; background:#f849c1; color:#1e1e1e; font-weight:bold; padding:8px; border:none; border-radius:4px; cursor:pointer; margin-top:6px;">Submit Pin</button>
         </div>
       `;
 
@@ -311,7 +365,16 @@
       }
 
       try {
-        await addDoc(collection(db, "venues"), { name, address, genre, lat, lng, note, author, createdAt: Date.now() });
+        await push(venuesRef, {
+          name,
+          address,
+          genre,
+          lat,
+          lng,
+          note,
+          author,
+          createdAt: Date.now()
+        });
         map.closePopup();
         window.scrollTo(0, 0);
       } catch (err) {
