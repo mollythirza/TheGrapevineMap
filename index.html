@@ -23,7 +23,7 @@
       overflow: hidden;
     }
 
-    /* Standardized Header matching all pages */
+    /* Fixed Top Black Header */
     header {
       position: fixed;
       top: 0;
@@ -43,7 +43,7 @@
     .brand-container {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       text-decoration: none;
     }
 
@@ -74,7 +74,7 @@
       text-shadow: 0 0 8px #ff007f;
     }
 
-    /* Map Layout Container */
+    /* Full-Height Map Container Fix */
     #map {
       width: 100vw;
       height: calc(100vh - 60px);
@@ -82,7 +82,7 @@
       top: 60px;
       left: 0;
       z-index: 1;
-      background-color: #0d0d0d;
+      background-color: #111;
     }
 
     /* Sidebar Directory */
@@ -99,7 +99,6 @@
       flex-direction: column;
       box-shadow: 5px 0 20px rgba(0,0,0,0.8);
       backdrop-filter: blur(8px);
-      transition: transform 0.3s ease;
     }
 
     .custom-input {
@@ -128,7 +127,7 @@
       border-radius: 6px !important;
     }
 
-    /* Geocoder Address Search Styling */
+    /* Geocoder Address Search Box Styling */
     .leaflet-control-geocoder {
       background: #141414 !important;
       border: 2px solid #ff007f !important;
@@ -151,13 +150,13 @@
 
   <!-- Header -->
   <header>
-    <a href="index.html" class="brand-container">
+    <a href="../index.html" class="brand-container">
       <img src="grape-logo.png" alt="Grapevine Logo" class="brand-logo" onerror="this.style.display='none'">
       <img src="grapevine-title.png" alt="The Grapevine" class="brand-title" onerror="this.onerror=null; this.src=''; this.outerHTML='<h1 style=\'color:#ff007f;font-size:16px;\'>THE GRAPEVINE</h1>'">
     </a>
     <div class="nav-links flex items-center gap-4">
-      <span id="auth-status" class="text-[10px] text-gray-400 hidden sm:inline">● Connected</span>
-      <a href="index.html">← Back to Hub</a>
+      <span id="auth-status" class="text-[10px] text-gray-400 hidden sm:inline">● Live Sync</span>
+      <a href="../index.html">← Back to Hub</a>
     </div>
   </header>
 
@@ -201,10 +200,22 @@
     const db = getDatabase(app);
     const venuesRef = ref(db, 'venues');
 
+    // Initialize Map
     const map = L.map('map', { zoomControl: false }).setView([51.5074, -0.1278], 11);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // Address Search Geocoder
+    // Reliable Dark Tiles Engine (CartoDB Dark Matter with OpenStreetMap fallback)
+    const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
+
+    // Ensure map tiles calculate correct container size after DOM load
+    setTimeout(() => { map.invalidateSize(); }, 200);
+    setTimeout(() => { map.invalidateSize(); }, 600);
+
+    // Address Search Geocoder Control
     const geocoder = L.Control.geocoder({
       defaultMarkGeocode: false,
       placeholder: "Search address, street, or venue...",
@@ -242,13 +253,6 @@
     })
     .addTo(map);
 
-    setTimeout(() => map.invalidateSize(), 300);
-
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; CARTO',
-      maxZoom: 19
-    }).addTo(map);
-
     const pinkMarkerIcon = L.divIcon({
       className: 'custom-pink-marker',
       html: `<div style="background-color: #ff007f; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 12px #ff007f;"></div>`,
@@ -266,11 +270,13 @@
 
     onValue(venuesRef, (snapshot) => {
       const data = snapshot.val();
-      venues = [...defaultVenues]; // Always keep defaults loaded
+      venues = [...defaultVenues];
 
       if (data) {
         Object.keys(data).forEach((key) => {
-          venues.push({ id: key, ...data[key] });
+          if (!venues.some(v => v.id === key)) {
+            venues.push({ id: key, ...data[key] });
+          }
         });
       }
       renderVenues(venues);
