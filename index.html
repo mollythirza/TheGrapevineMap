@@ -90,7 +90,7 @@
       filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
     }
 
-    /* Sidebar Directory */
+    /* Collapsible Sidebar Directory */
     #sidebar {
       position: fixed;
       top: 60px;
@@ -98,12 +98,36 @@
       bottom: 0;
       z-index: 50;
       width: 320px;
-      background: rgba(14, 14, 14, 0.95);
+      max-width: 85vw;
+      background: rgba(14, 14, 14, 0.97);
       border-right: 1px solid rgba(255, 0, 127, 0.3);
       display: flex;
       flex-direction: column;
       box-shadow: 5px 0 20px rgba(0,0,0,0.8);
       backdrop-filter: blur(8px);
+      transform: translateX(0);
+      transition: transform 0.3s ease-in-out;
+    }
+
+    #sidebar.closed {
+      transform: translateX(-100%);
+    }
+
+    /* Mobile Backdrop when drawer is open */
+    #sidebar-backdrop {
+      position: fixed;
+      top: 60px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 45;
+      display: none;
+      backdrop-filter: blur(2px);
+    }
+
+    #sidebar-backdrop.active {
+      display: block;
     }
 
     .custom-input {
@@ -159,16 +183,24 @@
       <img src="grape-logo.png" alt="Grapevine Logo" class="brand-logo" onerror="this.style.display='none'">
       <img src="grapevine-title.png" alt="The Grapevine" class="brand-title" onerror="this.onerror=null; this.src=''; this.outerHTML='<h1 style=\'color:#ff007f;font-size:16px;\'>THE GRAPEVINE</h1>'">
     </a>
-    <div class="nav-links flex items-center gap-4">
+    <div class="nav-links flex items-center gap-3">
+      <!-- Toggle Sidebar / Directory Button -->
+      <button onclick="window.toggleSidebar()" class="bg-[#ff007f] text-black text-xs uppercase px-2.5 py-1 rounded font-bold cursor-pointer hover:bg-[#ff3399] transition">
+        📁 Directory
+      </button>
       <span id="auth-status" class="text-[10px] text-gray-400 hidden sm:inline">● Live Firestore Sync</span>
       <a href="../index.html">← Back to Hub</a>
     </div>
   </header>
 
-  <!-- Sidebar Directory -->
+  <!-- Mobile Background Backdrop -->
+  <div id="sidebar-backdrop" onclick="window.toggleSidebar()"></div>
+
+  <!-- Collapsible Sidebar Directory -->
   <aside id="sidebar">
     <div class="p-4 border-b border-[#262626] bg-[#101010] flex justify-between items-center">
       <h2 class="text-xs font-bold text-[#ff007f] uppercase tracking-wider">Community Directory</h2>
+      <button onclick="window.toggleSidebar()" class="text-gray-400 hover:text-white text-lg font-bold px-1">&times;</button>
     </div>
     <div class="p-4 border-b border-[#262626]">
       <input type="text" id="search-input" placeholder="Search venues, genres, addresses..." class="custom-input" oninput="window.filterVenues()">
@@ -227,6 +259,20 @@
 
     setTimeout(() => { map.invalidateSize(); }, 300);
 
+    // Sidebar Drawer Toggle Handler
+    window.toggleSidebar = function() {
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      sidebar.classList.toggle('closed');
+      backdrop.classList.toggle('active');
+      setTimeout(() => map.invalidateSize(), 300);
+    };
+
+    // Auto-close directory on mobile screens by default for a clean view
+    if (window.innerWidth < 768) {
+      window.toggleSidebar();
+    }
+
     // Address Search Geocoder Box
     const geocoder = L.Control.geocoder({
       defaultMarkGeocode: false,
@@ -280,7 +326,6 @@
       { id: 'default-2', name: "New Cross Inn", genre: "Punk / Alternative / Indie", address: "323 New Cross Rd, London SE14 6AS", lat: 51.4745, lng: -0.0385, note: "Heart of South London's grassroots live music scene.", author: "Molly" }
     ];
 
-    // Seed defaults if collection is empty
     async function seedDefaultsIfNeeded() {
       if (!db) return;
       try {
@@ -296,7 +341,6 @@
     }
     seedDefaultsIfNeeded();
 
-    // Listen to Firestore real-time updates for all old and new pins
     if (db) {
       onSnapshot(collection(db, "venues"), (snapshot) => {
         venues = [];
@@ -353,6 +397,7 @@
         card.onclick = () => {
           map.setView([v.lat, v.lng], 14);
           marker.openPopup();
+          if (window.innerWidth < 768) window.toggleSidebar();
         };
         listContainer.appendChild(card);
       });
