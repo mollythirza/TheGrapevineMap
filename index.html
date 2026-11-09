@@ -12,19 +12,21 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
   
   <style>
-    @import url('https://db.onlinewebfonts.com/c/33a778322e7d57ee578df9e00a59d75b?family=Monte+Stella+VF+Trial+Medium');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    body { background-color: #1e1e1e; color: #66d575; font-family: sans-serif; }
-    
-    .brand-title {
-      font-family: "Monte Stella VF Trial Medium", "Monte Stella", sans-serif;
-      font-weight: 500;
+    body, html {
+      width: 100%;
+      height: 100%;
+      background-color: #0d0d0d;
+      color: #fff;
+      font-family: 'Courier New', Courier, monospace;
+      overflow: hidden;
     }
-
+    
     .brand-logo {
       height: 28px;
       width: auto;
-      filter: drop-shadow(0 0 6px #f849c1);
+      filter: drop-shadow(0 0 6px #ff007f);
       flex-shrink: 0;
     }
 
@@ -36,30 +38,33 @@
     }
 
     .leaflet-popup-content-wrapper, .leaflet-popup-tip {
-      background: #1e1e1e !important;
-      color: #66d575 !important;
-      border: 2px solid #f849c1;
+      background: #141414 !important;
+      color: #fff !important;
+      border: 2px solid #ff007f !important;
+      font-family: 'Courier New', Courier, monospace !important;
+      border-radius: 6px !important;
     }
     
     .custom-input {
-      background: #121212;
-      color: #66d575;
-      border: 1px solid #f849c1;
+      background: #0d0d0d;
+      color: #fff;
+      border: 1px solid #ff007f;
       padding: 8px 12px;
       width: 100%;
       border-radius: 4px;
       margin-top: 4px;
       margin-bottom: 8px;
-      font-size: 16px !important; 
+      font-size: 14px !important; 
+      font-family: inherit;
     }
-    .custom-input:focus { outline: none; border-color: #66d575; }
+    .custom-input:focus { outline: none; border-color: #ff007f; box-shadow: 0 0 8px rgba(255, 0, 127, 0.4); }
 
-    /* Geocoder Address Search Styling to match theme */
+    /* Geocoder Address Search Styling */
     .leaflet-control-geocoder {
-      background: #1e1e1e !important;
-      border: 2px solid #f849c1 !important;
+      background: #141414 !important;
+      border: 2px solid #ff007f !important;
       border-radius: 6px !important;
-      box-shadow: 0 0 15px rgba(248, 73, 193, 0.4) !important;
+      box-shadow: 0 0 15px rgba(255, 0, 127, 0.4) !important;
     }
 
     .leaflet-control-geocoder-icon {
@@ -67,8 +72,8 @@
     }
 
     .leaflet-control-geocoder-form input {
-      color: #66d575 !important;
-      background: #121212 !important;
+      color: #fff !important;
+      background: #0d0d0d !important;
       font-family: inherit !important;
     }
   </style>
@@ -76,22 +81,22 @@
 <body class="flex flex-col h-[100dvh] overflow-hidden m-0 p-0">
 
   <!-- Header -->
-  <header class="bg-[#121212] border-b-4 border-[#f849c1] px-3 md:px-6 py-3 flex justify-between items-center z-30 shadow-lg relative flex-shrink-0">
+  <header class="bg-[#0d0d0d] border-b-2 border-[#ff007f] px-3 md:px-6 py-3 flex justify-between items-center z-30 shadow-lg relative flex-shrink-0">
     <div class="flex items-center space-x-2 md:space-x-3 overflow-hidden">
       <img src="grape-logo.png" alt="Grapevine Logo" class="brand-logo" onerror="this.style.display='none'">
-      <img src="grapevine-title.png" alt="The Grapevine" class="brand-title-img" onerror="this.onerror=null; this.src=''; this.outerHTML='<h1 class=\'text-base md:text-2xl text-[#f849c1] brand-title truncate\'>The Grapevine</h1>'">
+      <img src="grapevine-title.png" alt="The Grapevine" class="brand-title-img" onerror="this.onerror=null; this.src=''; this.outerHTML='<h1 class=\'text-base md:text-2xl text-[#ff007f] font-bold uppercase truncate\'>The Grapevine</h1>'">
     </div>
     
     <div class="flex items-center space-x-3 flex-shrink-0 ml-2">
       <span id="auth-status" class="text-[10px] text-gray-400 hidden lg:inline">Connecting...</span>
       
-      <!-- Unified Cross-Link Back to Main Hub -->
-      <a href="../index.html" class="text-xs text-gray-300 hover:text-[#f849c1] uppercase transition font-bold">← Back to Hub</a>
+      <!-- Fixed Link back to Main Hub -->
+      <a href="https://mollythirza.github.io/TheGrapevineHub/" class="text-xs text-gray-300 hover:text-[#ff007f] uppercase transition font-bold">← Back to Hub</a>
 
-      <button onclick="toggleSidebar()" class="md:hidden bg-[#f849c1] text-[#1e1e1e] font-bold px-3 py-1.5 rounded text-xs whitespace-nowrap shadow-md hover:bg-[#66d575] transition">
+      <button onclick="toggleSidebar()" class="md:hidden bg-[#ff007f] text-[#000] font-bold px-3 py-1.5 rounded text-xs whitespace-nowrap shadow-md hover:bg-[#ff3399] transition">
         📁 Directory
       </button>
-      <div class="hidden md:block text-xs md:text-sm text-[#66d575] bg-[#1e1e1e] px-3 py-1.5 rounded border border-[#66d575]/40">
+      <div class="hidden md:block text-xs md:text-sm text-[#ff007f] bg-[#141414] px-3 py-1.5 rounded border border-[#ff007f]/40">
         💡 <span class="font-semibold">Click map or search address</span> to add a venue!
       </div>
     </div>
@@ -102,9 +107,9 @@
     <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/70 z-40 hidden md:hidden transition-opacity"></div>
 
     <!-- Sidebar Directory -->
-    <aside id="sidebar" class="fixed top-[57px] md:top-0 bottom-0 left-0 z-50 w-[85vw] max-w-sm bg-[#141414] border-r border-[#f849c1]/30 flex flex-col shadow-2xl transform -translate-x-full transition-transform duration-300 md:relative md:w-80 md:translate-x-0">
+    <aside id="sidebar" class="fixed top-[57px] md:top-0 bottom-0 left-0 z-50 w-[85vw] max-w-sm bg-[#141414] border-r border-[#ff007f]/30 flex flex-col shadow-2xl transform -translate-x-full transition-transform duration-300 md:relative md:w-80 md:translate-x-0">
       <div class="p-4 border-b border-[#262626] flex justify-between items-center bg-[#101010]">
-        <h2 class="text-sm font-semibold text-[#f849c1] uppercase tracking-wider">Community Directory</h2>
+        <h2 class="text-xs font-bold text-[#ff007f] uppercase tracking-wider">Community Directory</h2>
         <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-white text-2xl font-bold px-2 py-1">&times;</button>
       </div>
       <div class="p-4 border-b border-[#262626] bg-[#141414]">
@@ -116,7 +121,7 @@
     </aside>
 
     <!-- Map Area -->
-    <main id="map" class="flex-1 w-full h-full z-0 bg-[#1e1e1e]"></main>
+    <main id="map" class="flex-1 w-full h-full z-0 bg-[#0d0d0d]"></main>
   </div>
 
   <!-- Leaflet JS & Geocoder -->
@@ -129,7 +134,6 @@
     import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, collection, addDoc, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // Your exact Firestore configuration containing your original pins
     const firebaseConfig = {
       apiKey: "AIzaSyAHktJ2OUTVAIuVTVZnJ5ufQvbCVgy1vJg",
       authDomain: "the-grapevine-collective.firebaseapp.com",
@@ -180,23 +184,23 @@
         .setLatLng(e.geocode.center)
         .setContent(`
           <div style="min-width: 200px">
-            <h4 style="margin:0 0 6px 0; color:#f849c1; font-weight:bold;">Pin Venue at Searched Address</h4>
-            <label style="font-size:11px; color:#66d575;">Venue Name:</label>
+            <h4 style="margin:0 0 6px 0; color:#ff007f; font-weight:bold; text-transform:uppercase;">Pin Venue at Searched Address</h4>
+            <label style="font-size:11px; color:#aaa;">Venue Name:</label>
             <input id="new-name" class="custom-input" placeholder="e.g. The Sound Box" />
             
-            <label style="font-size:11px; color:#66d575;">Address / Location:</label>
+            <label style="font-size:11px; color:#aaa;">Address / Location:</label>
             <input id="new-address" class="custom-input" value="${e.geocode.name}" />
 
-            <label style="font-size:11px; color:#66d575;">Genre / Vibe:</label>
+            <label style="font-size:11px; color:#aaa;">Genre / Vibe:</label>
             <input id="new-genre" class="custom-input" placeholder="e.g. Punk / Hardcore" />
             
-            <label style="font-size:11px; color:#66d575;">Your Name (Optional):</label>
+            <label style="font-size:11px; color:#aaa;">Your Name (Optional):</label>
             <input id="new-author" class="custom-input" placeholder="e.g. Molly" />
             
-            <label style="font-size:11px; color:#66d575;">Community Note:</label>
+            <label style="font-size:11px; color:#aaa;">Community Note:</label>
             <input id="new-note" class="custom-input" placeholder="Why do you love it?" />
             
-            <button onclick="saveNewVenue(${e.geocode.center.lat}, ${e.geocode.center.lng})" style="width:100%; background:#f849c1; color:#1e1e1e; font-weight:bold; padding:8px; border:none; border-radius:4px; cursor:pointer; margin-top:6px;">Submit Pin</button>
+            <button onclick="saveNewVenue(${e.geocode.center.lat}, ${e.geocode.center.lng})" style="width:100%; background:#ff007f; color:#000; font-weight:bold; padding:8px; border:none; border-radius:4px; cursor:pointer; margin-top:6px; font-family:inherit;">Submit Pin</button>
           </div>
         `)
         .openOn(map);
@@ -218,7 +222,7 @@
 
     const pinkMarkerIcon = L.divIcon({
       className: 'custom-pink-marker',
-      html: `<div style="background-color: #f849c1; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #1e1e1e; box-shadow: 0 0 10px #f849c1;"></div>`,
+      html: `<div style="background-color: #ff007f; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 10px #ff007f;"></div>`,
       iconSize: [16, 16],
       iconAnchor: [8, 8]
     });
@@ -285,26 +289,26 @@
         const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
 
         marker.bindPopup(`
-          <div style="font-family:sans-serif; min-width:180px;">
-            <h3 style="color:#f849c1; font-weight:bold; font-size:15px; margin:0 0 4px 0;">${v.name}</h3>
+          <div style="font-family:inherit; min-width:180px;">
+            <h3 style="color:#ff007f; font-weight:bold; font-size:15px; margin:0 0 4px 0; text-transform:uppercase;">${v.name}</h3>
             <p style="color:#aaa; font-size:11px; margin:0 0 4px 0;">📍 ${displayAddress}</p>
-            <p style="color:#66d575; font-size:12px; margin:0 0 4px 0;"><strong>Genre:</strong> ${v.genre}</p>
+            <p style="color:#fff; font-size:12px; margin:0 0 4px 0;"><strong>Genre:</strong> ${v.genre}</p>
             <p style="color:#888; font-size:10px; margin:0 0 6px 0;"><strong>Marked by:</strong> ${v.author || 'Anonymous'}</p>
             <p style="color:#ccc; font-size:12px; margin:0 0 8px 0;">${v.note || 'No notes provided.'}</p>
-            <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; font-size:11px; color:#f849c1; text-decoration:underline;">Get Directions ↗</a>
+            <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; font-size:11px; color:#ff007f; text-decoration:underline;">Get Directions ↗</a>
           </div>
         `);
 
         const card = document.createElement('div');
-        card.className = "bg-[#1e1e1e] border border-[#f849c1]/40 rounded p-3 hover:border-[#66d575] cursor-pointer transition shadow";
+        card.className = "bg-[#141414] border border-[#ff007f]/40 rounded p-3 hover:border-[#ff007f] cursor-pointer transition shadow";
         card.innerHTML = `
           <div class="flex justify-between items-start">
-            <h4 class="font-bold text-sm text-[#f849c1]">${v.name}</h4>
-            <span class="text-[10px] bg-[#66d575]/20 text-[#66d575] px-1.5 py-0.5 rounded">${v.genre}</span>
+            <h4 class="font-bold text-xs text-[#ff007f] uppercase">${v.name}</h4>
+            <span class="text-[10px] bg-[#ff007f]/20 text-[#ff007f] px-1.5 py-0.5 rounded">${v.genre}</span>
           </div>
           <div class="text-[11px] text-gray-400 mt-1 truncate">📍 ${displayAddress}</div>
           <p class="text-xs text-gray-300 mt-1 line-clamp-2">${v.note || ''}</p>
-          <div class="text-[10px] text-gray-400 mt-2">Marked by: <span class="text-[#f849c1]">${v.author || 'Anonymous'}</span></div>
+          <div class="text-[10px] text-gray-400 mt-2">Marked by: <span class="text-[#ff007f]">${v.author || 'Anonymous'}</span></div>
         `;
         card.onclick = () => {
           map.setView([v.lat, v.lng], 14);
@@ -340,23 +344,23 @@
 
       const popupContent = `
         <div style="min-width: 200px">
-          <h4 style="margin:0 0 6px 0; color:#f849c1; font-weight:bold;">Add Venue Recommendation</h4>
-          <label style="font-size:11px; color:#66d575;">Venue Name:</label>
+          <h4 style="margin:0 0 6px 0; color:#ff007f; font-weight:bold; text-transform:uppercase;">Add Venue Recommendation</h4>
+          <label style="font-size:11px; color:#aaa;">Venue Name:</label>
           <input id="new-name" class="custom-input" placeholder="e.g. The Sound Box" />
           
-          <label style="font-size:11px; color:#66d575;">Address / Location:</label>
+          <label style="font-size:11px; color:#aaa;">Address / Location:</label>
           <input id="new-address" class="custom-input" value="${fetchedAddress}" placeholder="e.g. 12 High St, London" />
 
-          <label style="font-size:11px; color:#66d575;">Genre / Vibe:</label>
+          <label style="font-size:11px; color:#aaa;">Genre / Vibe:</label>
           <input id="new-genre" class="custom-input" placeholder="e.g. Indie / Jazz" />
           
-          <label style="font-size:11px; color:#66d575;">Your Name (Optional):</label>
+          <label style="font-size:11px; color:#aaa;">Your Name (Optional):</label>
           <input id="new-author" class="custom-input" placeholder="e.g. Molly" />
           
-          <label style="font-size:11px; color:#66d575;">Community Note:</label>
+          <label style="font-size:11px; color:#aaa;">Community Note:</label>
           <input id="new-note" class="custom-input" placeholder="Why do you love it?" />
           
-          <button onclick="saveNewVenue(${lat}, ${lng})" style="width:100%; background:#f849c1; color:#1e1e1e; font-weight:bold; padding:8px; border:none; border-radius:4px; cursor:pointer; margin-top:6px;">Submit Pin</button>
+          <button onclick="saveNewVenue(${lat}, ${lng})" style="width:100%; background:#ff007f; color:#000; font-weight:bold; padding:8px; border:none; border-radius:4px; cursor:pointer; margin-top:6px; font-family:inherit;">Submit Pin</button>
         </div>
       `;
 
