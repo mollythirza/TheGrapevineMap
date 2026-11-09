@@ -23,7 +23,7 @@
       overflow: hidden;
     }
 
-    /* Standardized Header matching all sub-pages */
+    /* Standardized Header matching all pages */
     header {
       position: fixed;
       top: 0;
@@ -85,7 +85,7 @@
       background-color: #111;
     }
 
-    /* Pure CSS Dark-Mode Filter for OpenStreetMap Tiles (No API key needed!) */
+    /* Pure CSS Dark-Mode Filter for OpenStreetMap Tiles */
     .dark-tiles {
       filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
     }
@@ -153,14 +153,14 @@
 </head>
 <body class="overflow-hidden m-0 p-0">
 
-  <!-- Header Header -->
+  <!-- Header -->
   <header>
     <a href="../index.html" class="brand-container">
       <img src="grape-logo.png" alt="Grapevine Logo" class="brand-logo" onerror="this.style.display='none'">
       <img src="grapevine-title.png" alt="The Grapevine" class="brand-title" onerror="this.onerror=null; this.src=''; this.outerHTML='<h1 style=\'color:#ff007f;font-size:16px;\'>THE GRAPEVINE</h1>'">
     </a>
     <div class="nav-links flex items-center gap-4">
-      <span id="auth-status" class="text-[10px] text-gray-400 hidden sm:inline">● Live Sync Active</span>
+      <span id="auth-status" class="text-[10px] text-gray-400 hidden sm:inline">● Live Firestore Sync</span>
       <a href="../index.html">← Back to Hub</a>
     </div>
   </header>
@@ -185,10 +185,11 @@
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
-  <!-- Firebase Realtime Database Sync -->
+  <!-- Firebase Firestore Integration -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBozbn-0iQNhjuAcmL-dYOUtbhIYTjccYk",
@@ -201,17 +202,25 @@
       measurementId: "G-V1KW1QSNWS"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const venuesRef = ref(db, 'venues');
+    let db;
+    try {
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      db = getFirestore(app);
 
-    // Initialize Map View
+      signInAnonymously(auth).catch(err => console.log("Auth notice:", err));
+      onAuthStateChanged(auth, (user) => {
+        document.getElementById('auth-status').innerText = user ? "● Live Firestore Sync" : "Connecting...";
+      });
+    } catch (e) {
+      console.error("Firebase init error:", e);
+    }
+
     const map = L.map('map', { zoomControl: false }).setView([51.5074, -0.1278], 11);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // Reliable Free OpenStreetMap Dark Tile Layer (No API Key Required)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      attribution: '&copy; OpenStreetMap contributors',
       className: 'dark-tiles',
       maxZoom: 19
     }).addTo(map);
@@ -271,17 +280,36 @@
       { id: 'default-2', name: "New Cross Inn", genre: "Punk / Alternative / Indie", address: "323 New Cross Rd, London SE14 6AS", lat: 51.4745, lng: -0.0385, note: "Heart of South London's grassroots live music scene.", author: "Molly" }
     ];
 
-    onValue(venuesRef, (snapshot) => {
-      const data = snapshot.val();
-      venues = [...defaultVenues];
-
-      if (data) {
-        Object.keys(data).forEach((key) => {
-          venues.push({ id: key, ...data[key] });
-        });
+    // Seed defaults if collection is empty
+    async function seedDefaultsIfNeeded() {
+      if (!db) return;
+      try {
+        const snapshot = await getDocs(collection(db, "venues"));
+        if (snapshot.empty) {
+          for (const v of defaultVenues) {
+            await addDoc(collection(db, "venues"), { name: v.name, genre: v.genre, address: v.address, lat: v.lat, lng: v.lng, note: v.note, author: v.author, createdAt: Date.now() });
+          }
+        }
+      } catch(e) {
+        console.log("Using local fallback venues.");
       }
-      renderVenues(venues);
-    });
+    }
+    seedDefaultsIfNeeded();
+
+    // Listen to Firestore real-time updates for all old and new pins
+    if (db) {
+      onSnapshot(collection(db, "venues"), (snapshot) => {
+        venues = [];
+        snapshot.forEach((doc) => {
+          venues.push({ id: doc.id, ...doc.data() });
+        });
+        if (venues.length === 0) venues = defaultVenues;
+        renderVenues(venues);
+      }, (error) => {
+        console.log("Snapshot fallback active");
+        renderVenues(defaultVenues);
+      });
+    }
 
     function renderVenues(filteredVenues) {
       markersLayer.clearLayers();
@@ -381,7 +409,7 @@
       }
 
       try {
-        await push(venuesRef, { name, address, genre, lat, lng, note, author, createdAt: Date.now() });
+        await addDoc(collection(db, "venues"), { name, address, genre, lat, lng, note, author, createdAt: Date.now() });
         map.closePopup();
       } catch (err) {
         alert("Error saving venue pin: " + err.message);
