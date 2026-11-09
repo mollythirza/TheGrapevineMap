@@ -3,255 +3,332 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>The Grapevine — Grassroots Venue Map</title>
-  <!-- Leaflet CSS for Map Integration -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <title>Grassroots Venue Map — The Grapevine</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    @import url('https://db.onlinewebfonts.com/c/33a778322e7d57ee578df9e00a59d75b?family=Monte+Stella+VF+Trial+Medium');
 
-    body, html {
-      width: 100%;
-      height: 100%;
-      background-color: #0d0d0d;
-      color: #fff;
-      font-family: 'Courier New', Courier, monospace;
-      overflow: hidden;
-    }
-
-    header {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      z-index: 10000;
-      background: rgba(13, 13, 13, 0.95);
-      border-bottom: 2px solid #ff007f;
-      padding: 12px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      backdrop-filter: blur(8px);
-      box-shadow: 0 0 20px rgba(255, 0, 127, 0.3);
-    }
-
-    .brand-container {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      text-decoration: none;
+    body { background-color: #1e1e1e; color: #66d575; font-family: sans-serif; }
+    
+    .brand-title {
+      font-family: "Monte Stella VF Trial Medium", "Monte Stella", sans-serif;
+      font-weight: 500;
     }
 
     .brand-logo {
-      height: 32px;
+      height: 28px;
       width: auto;
-      filter: drop-shadow(0 0 6px #ff007f);
+      filter: drop-shadow(0 0 6px #f849c1);
       flex-shrink: 0;
     }
 
-    .brand-title {
-      max-height: 20px;
+    .brand-title-img {
+      max-height: 18px;
       width: auto;
       object-fit: contain;
       filter: invert(1);
     }
 
-    .nav-links a {
-      color: #aaa;
-      text-decoration: none;
-      font-size: 12px;
-      text-transform: uppercase;
-      transition: color 0.2s;
-    }
-
-    .nav-links a:hover {
-      color: #ff007f;
-      text-shadow: 0 0 8px #ff007f;
-    }
-
-    /* Map Viewport Container */
-    #map {
-      width: 100vw;
-      height: 100vh;
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: 1;
-      background-color: #111;
-    }
-
-    /* Floating Venue Search Overlay */
-    .search-overlay {
-      position: fixed;
-      top: 80px;
-      left: 20px;
-      z-index: 2000;
-      background: rgba(13, 13, 13, 0.9);
-      border: 1px solid #ff007f;
-      padding: 12px;
-      border-radius: 6px;
-      box-shadow: 0 0 20px rgba(255, 0, 127, 0.4);
-      backdrop-filter: blur(6px);
-      width: 300px;
-    }
-
-    .search-overlay h3 {
-      font-size: 12px;
-      color: #ff007f;
-      text-transform: uppercase;
-      margin-bottom: 8px;
-    }
-
-    .venue-search-input {
-      width: 100%;
-      background: #0d0d0d;
-      border: 1px solid #333;
-      color: #fff;
-      padding: 8px 10px;
-      font-family: inherit;
-      font-size: 12px;
-      border-radius: 4px;
-      outline: none;
-    }
-
-    .venue-search-input:focus {
-      border-color: #ff007f;
-      box-shadow: 0 0 8px rgba(255, 0, 127, 0.4);
-    }
-
-    .search-results {
-      max-height: 150px;
-      overflow-y: auto;
-      margin-top: 6px;
-    }
-
-    .search-result-item {
-      padding: 6px 8px;
-      font-size: 11px;
-      color: #ccc;
-      cursor: pointer;
-      border-bottom: 1px solid #222;
-      transition: background 0.2s, color 0.2s;
-    }
-
-    .search-result-item:hover {
-      background: #ff007f;
-      color: #000;
-    }
-
-    /* Custom Leaflet Dark Mode Popup Styling */
     .leaflet-popup-content-wrapper, .leaflet-popup-tip {
-      background: #141414 !important;
-      color: #fff !important;
-      border: 1px solid #ff007f !important;
-      font-family: 'Courier New', Courier, monospace !important;
-      border-radius: 6px !important;
+      background: #1e1e1e !important;
+      color: #66d575 !important;
+      border: 2px solid #f849c1;
     }
-
-    .leaflet-popup-content h3 {
-      color: #ff007f;
-      font-size: 14px;
-      text-transform: uppercase;
-      margin-bottom: 4px;
+    
+    .custom-input {
+      background: #121212;
+      color: #66d575;
+      border: 1px solid #f849c1;
+      padding: 8px 12px;
+      width: 100%;
+      border-radius: 4px;
+      margin-top: 4px;
+      margin-bottom: 8px;
+      font-size: 16px !important; 
     }
-
-    .leaflet-popup-content p {
-      font-size: 11px;
-      color: #bbb;
-      line-height: 1.4;
-    }
+    .custom-input:focus { outline: none; border-color: #66d575; }
   </style>
 </head>
-<body>
+<body class="flex flex-col h-[100dvh] overflow-hidden m-0 p-0">
 
-  <!-- Top Header linking back ONLY to the Main Hub -->
-  <header>
-    <a href="index.html" class="brand-container">
+  <!-- Header -->
+  <header class="bg-[#121212] border-b-4 border-[#f849c1] px-3 md:px-6 py-3 flex justify-between items-center z-30 shadow-lg relative flex-shrink-0">
+    <div class="flex items-center space-x-2 md:space-x-3 overflow-hidden">
       <img src="grape-logo.png" alt="Grapevine Logo" class="brand-logo" onerror="this.style.display='none'">
-      <img src="grapevine-title.png" alt="The Grapevine" class="brand-title" onerror="this.onerror=null; this.src=''; this.outerHTML='<h1 style=\'color:#ff007f;font-size:14px;\'>THE GRAPEVINE</h1>'">
-    </a>
-    <nav class="nav-links">
-      <a href="index.html">← Back to Hub</a>
-    </nav>
+      <img src="grapevine-title.png" alt="The Grapevine" class="brand-title-img" onerror="this.onerror=null; this.src=''; this.outerHTML='<h1 class=\'text-base md:text-2xl text-[#f849c1] brand-title truncate\'>The Grapevine</h1>'">
+    </div>
+    
+    <div class="flex items-center space-x-3 flex-shrink-0 ml-2">
+      <span id="auth-status" class="text-[10px] text-gray-400 hidden lg:inline">Connecting...</span>
+      
+      <!-- Cross-Link back strictly to the Main Hub -->
+      <a href="index.html" class="text-xs text-gray-300 hover:text-[#f849c1] uppercase transition font-bold">← Back to Hub</a>
+
+      <button onclick="toggleSidebar()" class="md:hidden bg-[#f849c1] text-[#1e1e1e] font-bold px-3 py-1.5 rounded text-xs whitespace-nowrap shadow-md hover:bg-[#66d575] transition">
+        📁 Directory
+      </button>
+      <div class="hidden md:block text-xs md:text-sm text-[#66d575] bg-[#1e1e1e] px-3 py-1.5 rounded border border-[#66d575]/40">
+        💡 <span class="font-semibold">Click anywhere on the map</span> to recommend a venue!
+      </div>
+    </div>
   </header>
 
-  <!-- Floating Search & Marker Lookup Bar -->
-  <div class="search-overlay">
-    <h3>🔍 Search Grassroots Venues</h3>
-    <input type="text" id="venue-search" class="venue-search-input" placeholder="Search venue name, area..." oninput="filterVenues()">
-    <div id="search-results" class="search-results"></div>
+  <!-- Main Container -->
+  <div class="flex flex-1 relative overflow-hidden w-full">
+    <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/70 z-40 hidden md:hidden transition-opacity"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed top-[57px] md:top-0 bottom-0 left-0 z-50 w-[85vw] max-w-sm bg-[#141414] border-r border-[#f849c1]/30 flex flex-col shadow-2xl transform -translate-x-full transition-transform duration-300 md:relative md:w-80 md:translate-x-0">
+      <div class="p-4 border-b border-[#262626] flex justify-between items-center bg-[#101010]">
+        <h2 class="text-sm font-semibold text-[#f849c1] uppercase tracking-wider">Community Directory</h2>
+        <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-white text-2xl font-bold px-2 py-1">&times;</button>
+      </div>
+      <div class="p-4 border-b border-[#262626] bg-[#141414]">
+        <input type="text" id="search-input" placeholder="Search venues, genres, addresses..." class="custom-input" oninput="filterVenues()">
+      </div>
+      <div id="venue-list" class="flex-1 overflow-y-auto p-4 space-y-3">
+        <p class="text-xs text-gray-400 text-center py-6">Loading directory...</p>
+      </div>
+    </aside>
+
+    <!-- Map Area -->
+    <main id="map" class="flex-1 w-full h-full z-0 bg-[#1e1e1e]"></main>
   </div>
 
-  <!-- Interactive Map Canvas -->
-  <div id="map"></div>
-
   <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  
-  <script>
-    // Initialize Leaflet Map (Default centered on UK / Scene hubs)
-    const map = L.map('map', { zoomControl: false }).setView([51.5074, -0.1278], 13);
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-    // Add custom dark-themed CartoDB tiles to match DIY aesthetic
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+  <!-- Firebase Script -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBozbn-0iQNhjuAcmL-dYOUtbhIYTjccYk",
+      authDomain: "the-grapevine-5c046.firebaseapp.com",
+      databaseURL: "https://the-grapevine-5c046-default-rtdb.firebaseio.com",
+      projectId: "the-grapevine-5c046",
+      storageBucket: "the-grapevine-5c046.firebasestorage.app",
+      messagingSenderId: "606976230856",
+      appId: "1:606976230856:web:161a12734239f248ce2cfd",
+      measurementId: "G-V1KW1QSNWS"
+    };
+
+    let db;
+    try {
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      db = getFirestore(app);
+
+      signInAnonymously(auth).catch(err => console.log("Auth notice:", err));
+      onAuthStateChanged(auth, (user) => {
+        document.getElementById('auth-status').innerText = user ? "● Live Sync Active" : "Connecting...";
+      });
+    } catch (e) {
+      console.error("Firebase init error:", e);
+    }
+
+    const isMobile = window.innerWidth < 768;
+    const initialZoom = isMobile ? 7 : 11;
+
+    const map = L.map('map', { zoomControl: false }).setView([51.5074, -0.1278], initialZoom);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    setTimeout(() => map.invalidateSize(), 100);
+    setTimeout(() => map.invalidateSize(), 500);
+
+    map.on('popupclose', () => {
+      window.scrollTo(0, 0);
+      setTimeout(() => map.invalidateSize(), 200);
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
       maxZoom: 19
     }).addTo(map);
 
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    const pinkMarkerIcon = L.divIcon({
+      className: 'custom-pink-marker',
+      html: `<div style="background-color: #f849c1; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #1e1e1e; box-shadow: 0 0 10px #f849c1;"></div>`,
+      iconSize: [16, 16],
+      iconAnchor: [8, 8]
+    });
 
-    // Sample grassroots venues database (Syncs with Firebase or local markers)
-    const venues = [
-      { id: 1, name: "The DIY Basement", lat: 51.505, lng: -0.09, desc: "Independent hardcore & punk basement venue. BYOB.", type: "Venue" },
-      { id: 2, name: "Underground Social Club", lat: 51.515, lng: -0.11, desc: "Community arts space, all-ages shows and zine distros.", type: "Community Space" },
-      { id: 3, name: "The Black Box", lat: 51.502, lng: -0.13, desc: " DIY noise, ambient, and underground electronic club.", type: "Venue" }
+    let venues = [];
+    let markersLayer = L.layerGroup().addTo(map);
+
+    const defaultVenues = [
+      { id: 'default-1', name: "The Black Heart", genre: "Rock / Metal / DIY", address: "2-3 Greenland Pl, London NW1 0AP", lat: 51.5385, lng: -0.1415, note: "Legendary Camden rock pub with incredible atmosphere and upstairs gigs.", author: "Molly" },
+      { id: 'default-2', name: "New Cross Inn", genre: "Punk / Alternative / Indie", address: "323 New Cross Rd, London SE14 6AS", lat: 51.4745, lng: -0.0385, note: "Heart of South London's grassroots live music scene.", author: "Molly" }
     ];
 
-    const markersLayer = L.layerGroup().addTo(map);
-    const markerRegistry = {};
+    venues = defaultVenues;
+    renderVenues(venues);
 
-    function renderMarkers(filter = "") {
-      markersLayer.clearLayers();
-      const resultsContainer = document.getElementById('search-results');
-      resultsContainer.innerHTML = '';
-
-      venues.forEach(v => {
-        if (filter && !v.name.toLowerCase().includes(filter.toLowerCase()) && !v.desc.toLowerCase().includes(filter.toLowerCase())) {
-          return;
+    async function seedDefaultsIfNeeded() {
+      if (!db) return;
+      try {
+        const snapshot = await getDocs(collection(db, "venues"));
+        if (snapshot.empty) {
+          for (const v of defaultVenues) {
+            await addDoc(collection(db, "venues"), { name: v.name, genre: v.genre, address: v.address, lat: v.lat, lng: v.lng, note: v.note, author: v.author, createdAt: Date.now() });
+          }
         }
+      } catch(e) {
+        console.log("Using local venues.");
+      }
+    }
+    seedDefaultsIfNeeded();
 
-        // Add dropdown search result
-        const item = document.createElement('div');
-        item.className = 'search-result-item';
-        item.innerText = `${v.name} (${v.type})`;
-        item.onclick = () => {
-          map.setView([v.lat, v.lng], 16);
-          markerRegistry[v.id].openPopup();
-        };
-        resultsContainer.appendChild(item);
-
-        // Custom Neon Pink Marker Pin
-        const customIcon = L.divIcon({
-          className: 'custom-pin',
-          html: '<div style="background:#ff007f; width:14px; height:14px; border-radius:50%; border:2px solid #fff; box-shadow: 0 0 10px #ff007f;"></div>',
-          iconSize: [14, 14],
-          iconPoint: [7, 7]
+    if (db) {
+      try {
+        onSnapshot(collection(db, "venues"), (snapshot) => {
+          if (!snapshot.empty) {
+            venues = [];
+            snapshot.forEach((doc) => {
+              venues.push({ id: doc.id, ...doc.data() });
+            });
+            renderVenues(venues);
+          }
+        }, (error) => {
+          console.log("Snapshot fallback active");
         });
+      } catch (e) {
+        console.log("Firestore listener setup error");
+      }
+    }
 
-        const marker = L.marker([v.lat, v.lng], { icon: customIcon })
-          .bindPopup(`<h3>${v.name}</h3><p>${v.desc}</p>`);
+    function renderVenues(filteredVenues) {
+      markersLayer.clearLayers();
+      const listContainer = document.getElementById('venue-list');
+      listContainer.innerHTML = '';
 
-        markersLayer.addLayer(marker);
-        markerRegistry[v.id] = marker;
+      if (!filteredVenues || filteredVenues.length === 0) {
+        listContainer.innerHTML = '<p class="text-xs text-gray-400 text-center py-6">No venues found. Click the map to add one!</p>';
+        return;
+      }
+
+      filteredVenues.forEach(v => {
+        const marker = L.marker([v.lat, v.lng], { icon: pinkMarkerIcon }).addTo(markersLayer);
+        
+        const displayAddress = v.address || `${v.lat.toFixed(4)}, ${v.lng.toFixed(4)}`;
+        const mapsQuery = v.address ? `${v.name}, ${v.address}` : `${v.lat},${v.lng}`;
+        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
+
+        marker.bindPopup(`
+          <div style="font-family:sans-serif; min-width:180px;">
+            <h3 style="color:#f849c1; font-weight:bold; font-size:15px; margin:0 0 4px 0;">${v.name}</h3>
+            <p style="color:#aaa; font-size:11px; margin:0 0 4px 0;">📍 ${displayAddress}</p>
+            <p style="color:#66d575; font-size:12px; margin:0 0 4px 0;"><strong>Genre:</strong> ${v.genre}</p>
+            <p style="color:#888; font-size:10px; margin:0 0 6px 0;"><strong>Marked by:</strong> ${v.author || 'Anonymous'}</p>
+            <p style="color:#ccc; font-size:12px; margin:0 0 8px 0;">${v.note || 'No notes provided.'}</p>
+            <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; font-size:11px; color:#f849c1; text-decoration:underline;">Get Directions ↗</a>
+          </div>
+        `);
+
+        const card = document.createElement('div');
+        card.className = "bg-[#1e1e1e] border border-[#f849c1]/40 rounded p-3 hover:border-[#66d575] cursor-pointer transition shadow";
+        card.innerHTML = `
+          <div class="flex justify-between items-start">
+            <h4 class="font-bold text-sm text-[#f849c1]">${v.name}</h4>
+            <span class="text-[10px] bg-[#66d575]/20 text-[#66d575] px-1.5 py-0.5 rounded">${v.genre}</span>
+          </div>
+          <div class="text-[11px] text-gray-400 mt-1 truncate">📍 ${displayAddress}</div>
+          <p class="text-xs text-gray-300 mt-1 line-clamp-2">${v.note || ''}</p>
+          <div class="text-[10px] text-gray-400 mt-2">Marked by: <span class="text-[#f849c1]">${v.author || 'Anonymous'}</span></div>
+        `;
+        card.onclick = () => {
+          map.setView([v.lat, v.lng], 14);
+          marker.openPopup();
+          if (window.innerWidth < 768) toggleSidebar();
+        };
+        listContainer.appendChild(card);
       });
     }
 
-    function filterVenues() {
-      const query = document.getElementById('venue-search').value;
-      renderMarkers(query);
+    window.toggleSidebar = () => {
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      sidebar.classList.toggle('-translate-x-full');
+      backdrop.classList.toggle('hidden');
+      setTimeout(() => map.invalidateSize(), 300);
     }
 
-    // Initial render
-    renderMarkers();
+    map.on('click', async (e) => {
+      const { lat, lng } = e.latlng;
+      let fetchedAddress = "";
+
+      try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&email=thegrapevinecommunity@gmail.com`);
+        const data = await response.json();
+        if (data && data.display_name) {
+          const parts = data.display_name.split(',');
+          fetchedAddress = parts.slice(0, 3).join(',').trim();
+        }
+      } catch (err) {
+        console.log("Could not fetch reverse address.");
+      }
+
+      const popupContent = `
+        <div style="min-width: 200px">
+          <h4 style="margin:0 0 6px 0; color:#f849c1; font-weight:bold;">Add Venue Recommendation</h4>
+          <label style="font-size:11px; color:#66d575;">Venue Name:</label>
+          <input id="new-name" class="custom-input" placeholder="e.g. The Sound Box" />
+          
+          <label style="font-size:11px; color:#66d575;">Address / Location:</label>
+          <input id="new-address" class="custom-input" value="${fetchedAddress}" placeholder="e.g. 12 High St, London" />
+
+          <label style="font-size:11px; color:#66d575;">Genre / Vibe:</label>
+          <input id="new-genre" class="custom-input" placeholder="e.g. Indie / Jazz" />
+          
+          <label style="font-size:11px; color:#66d575;">Your Name (Optional):</label>
+          <input id="new-author" class="custom-input" placeholder="e.g. Molly" />
+          
+          <label style="font-size:11px; color:#66d575;">Community Note:</label>
+          <input id="new-note" class="custom-input" placeholder="Why do you love it?" />
+          
+          <button onclick="saveNewVenue(${lat}, ${lng})" style="width:100%; background:#f849c1; color:#1e1e1e; font-weight:bold; padding:8px; border:none; border-radius:4px; cursor:pointer; margin-top:6px;">Submit Pin</button>
+        </div>
+      `;
+
+      L.popup().setLatLng(e.latlng).setContent(popupContent).openOn(map);
+    });
+
+    window.saveNewVenue = async (lat, lng) => {
+      const name = document.getElementById('new-name').value.trim();
+      const address = document.getElementById('new-address').value.trim();
+      const genre = document.getElementById('new-genre').value.trim();
+      const author = document.getElementById('new-author').value.trim() || "Anonymous";
+      const note = document.getElementById('new-note').value.trim();
+
+      if (!name || !genre) {
+        alert("Please provide at least a Venue Name and Genre!");
+        return;
+      }
+
+      try {
+        await addDoc(collection(db, "venues"), { name, address, genre, lat, lng, note, author, createdAt: Date.now() });
+        map.closePopup();
+        window.scrollTo(0, 0);
+      } catch (err) {
+        alert("Error saving venue pin: " + err.message);
+      }
+    };
+
+    window.filterVenues = () => {
+      const query = document.getElementById('search-input').value.toLowerCase();
+      const filtered = venues.filter(v => 
+        v.name.toLowerCase().includes(query) || 
+        v.genre.toLowerCase().includes(query) || 
+        (v.address && v.address.toLowerCase().includes(query)) ||
+        (v.author && v.author.toLowerCase().includes(query))
+      );
+      renderVenues(filtered);
+    };
   </script>
 </body>
 </html>
